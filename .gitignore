@@ -8,3 +8,7 @@
 *.keystore
 *.hprof
 /buildSrc/build
+.local/
+**/build/
+miniprogram/project.private.config.json
+**/.kotlin/

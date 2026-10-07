@@ -106,11 +106,11 @@ class DownloadService : Service() {
             notificationBuilder = NotificationCompat.Builder(this, TVBro.CHANNEL_ID_DOWNLOADS)
                     .setOngoing(true)
                     .setOnlyAlertOnce(true)
-                    .setSmallIcon(R.drawable.ic_launcher)
+                    .setSmallIcon(R.drawable.lime_icon)
         }
         notificationBuilder!!.setContentTitle(title)
                 .setContentText(description)
-                .setSmallIcon(R.drawable.ic_launcher)
+                .setSmallIcon(R.drawable.lime_icon)
         if (hasUnknownSizedFiles || total == 0L) {
             notificationBuilder!!.setProgress(0, 0, true)
         } else {

@@ -1,0 +1,5 @@
+Generated using the built-in image_gen tool, 2026-10-07.
+
+Use case: logo-brand.
+Asset type: final square WeChat mini-program avatar for 青柠遥控, a phone touchpad that controls a TV browser.
+Primary request: create one polished, minimalist app avatar, square 1024x1024 pixels, ready for upload. A solid deep forest teal #132D29 background extends all the way to every edge. Center a bold lime green #BAF56D circular symbol, with a strong deep teal directional plus-shaped negative space inside. A small but bold white computer mouse pointer overlaps the lower-right area of the circle to convey precise remote control. The overall emblem should remain entirely within the central 70% of the canvas so it reads beautifully when WeChat crops it to a circle. Crisp, clean, flat geometric design with impeccable balance, simple enough to read at 48px. Friendly modern utility brand. No text, no letters, no watermarks, no mockup, no phone, no multiple designs, no gradients, no shadows, no textures, no external border. Render the final artwork itself.

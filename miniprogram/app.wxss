@@ -1,0 +1,15 @@
+page { background: #f3f6f1; color: #172f29; font-family: -apple-system, sans-serif; }
+button { border-radius: 20rpx; font-size: 28rpx; }
+button::after { border: none; }
+
+/* Shared form controls belong in app styles so native tag selectors apply. */
+button { width: 100%; min-height: 88rpx; line-height: 88rpx; box-sizing: border-box; background: #e9efe5; color: #172f29; margin: 0; padding: 0 12rpx; }
+button.primary { width: 100%; background: #bbf56f; font-weight: 650; }
+button.quiet { width: 100%; background: transparent; color: #5d7269; font-size: 25rpx; margin-top: 20rpx; }
+button[disabled] { opacity: .5; }
+input, textarea { background: #f3f6f1; border-radius: 16rpx; padding: 22rpx; font-size: 28rpx; box-sizing: border-box; }
+input { height: 88rpx; margin-bottom: 20rpx; }
+textarea { width: 100%; height: 170rpx; margin-bottom: 20rpx; }
+.row > button, .row > input { flex: 1; min-width: 0; }
+.grid button { width: 100%; font-size: 26rpx; }
+.dpad button { width: 100rpx; line-height: 90rpx; font-size: 34rpx; }

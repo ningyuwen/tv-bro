@@ -58,6 +58,9 @@ import com.phlox.tvwebbrowser.AppContext
 import com.phlox.tvwebbrowser.Config
 import com.phlox.tvwebbrowser.R
 import com.phlox.tvwebbrowser.TVBro
+import com.phlox.tvwebbrowser.remote.PhoneRemoteController
+import com.phlox.tvwebbrowser.remote.RemoteCommand
+import org.json.JSONObject
 import com.phlox.tvwebbrowser.activity.IncognitoModeMainActivity
 import com.phlox.tvwebbrowser.activity.downloads.DownloadsActivity
 import com.phlox.tvwebbrowser.activity.history.HistoryActivity
@@ -136,6 +139,94 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
     private var downloadIntent: Download? = null
     var openUrlInExternalAppDialog: AlertDialog? = null
     private var linkActionsMenu: PopupMenu? = null
+    private var phoneRemote: PhoneRemoteController? = null
+
+    fun showPhoneRemote() {
+        if (phoneRemote == null) {
+            phoneRemote = PhoneRemoteController(this, ::executePhoneCommand)
+        }
+        phoneRemote!!.show()
+    }
+
+    private fun hideOverlayForPhone() {
+        // Pointer commands must not land on the thumbnail during its exit animation.
+        vb.rlActionBar.animate().cancel()
+        vb.llBottomPanel.animate().cancel()
+        vb.ivMiniatures.animate().cancel()
+        vb.rlActionBar.visibility = View.INVISIBLE
+        vb.llBottomPanel.visibility = View.INVISIBLE
+        vb.ivMiniatures.visibility = View.INVISIBLE
+        vb.llMiniaturePlaceholder.visibility = View.INVISIBLE
+        vb.flWebViewContainer.visibility = View.VISIBLE
+    }
+
+    private fun executePhoneCommand(command: RemoteCommand): JSONObject {
+        val engine = tabsModel.currentTab.value?.webEngine
+        when (command) {
+            is RemoteCommand.Move -> {
+                require(engine != null) { "not_ready" }
+                hideOverlayForPhone()
+                engine.setVirtualCursorMode(true)
+                requireNotNull(engine.getCursorDrawerDelegate()) { "not_ready" }.remoteMove(command.dx, command.dy)
+            }
+            is RemoteCommand.Scroll -> {
+                require(engine != null) { "not_ready" }
+                hideOverlayForPhone()
+                requireNotNull(engine.getCursorDrawerDelegate()) { "not_ready" }.remoteScroll(command.dx, command.dy)
+            }
+            is RemoteCommand.Open -> {
+                hideMenuOverlay()
+                search(command.text)
+            }
+            is RemoteCommand.Text -> {
+                val focused = currentFocus
+                if (focused is android.widget.EditText) {
+                    focused.setText(command.text)
+                    focused.setSelection(focused.length())
+                } else {
+                    val connection = engine?.getView()?.findFocus()?.onCreateInputConnection(android.view.inputmethod.EditorInfo())
+                        ?: throw IllegalArgumentException("no_input")
+                    require(connection.commitText(command.text, 1)) { "no_input" }
+                }
+                (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
+                    .hideSoftInputFromWindow(window.decorView.windowToken, 0)
+            }
+            is RemoteCommand.Action -> when (command.name) {
+                "status" -> return JSONObject().put("tabs", tabsModel.tabsStates.size)
+                "click" -> {
+                    require(engine != null) { "not_ready" }
+                    hideOverlayForPhone()
+                    engine.setVirtualCursorMode(true)
+                    requireNotNull(engine.getCursorDrawerDelegate()) { "not_ready" }.remoteClick()
+                }
+                "back" -> navigateBack()
+                "forward" -> engine?.goForward()
+                "refresh" -> refresh()
+                "home" -> { hideMenuOverlay(); navigate(settingsModel.homePage) }
+                "menu" -> toggleMenu()
+                "playPause" -> engine?.togglePlayback()
+                "nextTab" -> if (tabsModel.tabsStates.isNotEmpty()) {
+                    val index = tabsModel.tabsStates.indexOf(tabsModel.currentTab.value)
+                    changeTab(tabsModel.tabsStates[(index + 1) % tabsModel.tabsStates.size])
+                    hideMenuOverlay()
+                }
+                "newTab" -> openInNewTab(settingsModel.homePage, tabsModel.tabsStates.size, navigateImmediately = true)
+                "closeTab" -> closeTab(tabsModel.currentTab.value)
+                else -> {
+                    val key = when (command.name) {
+                        "up" -> KeyEvent.KEYCODE_DPAD_UP
+                        "down" -> KeyEvent.KEYCODE_DPAD_DOWN
+                        "left" -> KeyEvent.KEYCODE_DPAD_LEFT
+                        "right" -> KeyEvent.KEYCODE_DPAD_RIGHT
+                        else -> KeyEvent.KEYCODE_DPAD_CENTER
+                    }
+                    dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, key))
+                    dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, key))
+                }
+            }
+        }
+        return JSONObject()
+    }
 
     public override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -683,6 +774,8 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
     }
 
     override fun onStop() {
+        phoneRemote?.close()
+        phoneRemote = null
         super.onStop()
         unbindService(downloadServiceConnection)
         downloadService = null
@@ -690,6 +783,8 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
 
     override fun onResume() {
         super.onResume()
+        if (phoneRemote == null) phoneRemote = PhoneRemoteController(this, ::executePhoneCommand)
+        phoneRemote!!.startIfEnabled()
         val intentFilter = IntentFilter("android.net.conn.CONNECTIVITY_CHANGE")
         registerReceiver(mConnectivityChangeReceiver, intentFilter)
         tabsModel.currentTab.value?.webEngine?.onResume()

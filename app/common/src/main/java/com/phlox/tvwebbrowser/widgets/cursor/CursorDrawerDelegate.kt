@@ -12,6 +12,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
+import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
@@ -97,6 +98,52 @@ class CursorDrawerDelegate(val context: Context, val surface: View) {
         scrollHackActiveRect.set(0, 0, surface.width, surface.height)
         scrollHackActiveRect.inset(SCROLL_HACK_PADDING, SCROLL_HACK_PADDING)
         scheduleCursorHide()
+    }
+
+    private fun endRemoteScroll() {
+        if (scrollHackStarted) {
+            dispatchMotionEvent(scrollHackCoords.x, scrollHackCoords.y, MotionEvent.ACTION_CANCEL)
+            scrollHackStarted = false
+        }
+    }
+
+    /** Main-thread relative pointer input, using the same visible cursor as the TV remote. */
+    fun remoteMove(dx: Float, dy: Float) {
+        endRemoteScroll()
+        cursorPosition.x = (cursorPosition.x + dx).coerceIn(0f, (surface.width - 1).coerceAtLeast(0).toFloat())
+        cursorPosition.y = (cursorPosition.y + dy).coerceIn(0f, (surface.height - 1).coerceAtLeast(0).toFloat())
+        lastCursorUpdate = System.currentTimeMillis()
+        scheduleCursorHide()
+        surface.invalidate()
+    }
+
+    fun remoteClick() {
+        endRemoteScroll()
+        dispatchMotionEvent(cursorPosition.x, cursorPosition.y, MotionEvent.ACTION_DOWN)
+        dispatchMotionEvent(cursorPosition.x, cursorPosition.y, MotionEvent.ACTION_UP)
+        lastCursorUpdate = System.currentTimeMillis()
+        scheduleCursorHide()
+        surface.invalidate()
+    }
+
+    fun remoteScroll(dx: Float, dy: Float) {
+        endRemoteScroll()
+        if (customScrollCallback?.onScroll(dx.toInt(), dy.toInt()) == true) return
+        // Mouse wheels do not hit the synthetic finger drag bounds used for DPAD edge scrolling.
+        val properties = arrayOf(MotionEvent.PointerProperties().apply {
+            id = 0
+            toolType = MotionEvent.TOOL_TYPE_MOUSE
+        })
+        val coordinates = arrayOf(MotionEvent.PointerCoords().apply {
+            x = cursorPosition.x
+            y = cursorPosition.y
+            setAxisValue(MotionEvent.AXIS_HSCROLL, -dx / 48f)
+            setAxisValue(MotionEvent.AXIS_VSCROLL, -dy / 48f)
+        })
+        val time = SystemClock.uptimeMillis()
+        val event = MotionEvent.obtain(time, time, MotionEvent.ACTION_SCROLL, 1, properties,
+            coordinates, 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_MOUSE, 0)
+        try { surface.dispatchGenericMotionEvent(event) } finally { event.recycle() }
     }
 
     fun canHandleBackNavigation(): Boolean {

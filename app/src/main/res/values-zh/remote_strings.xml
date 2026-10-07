@@ -1,0 +1,13 @@
+<resources>
+    <string name="phone_remote">手机遥控</string>
+    <string name="remote_enable">开启并配对手机</string>
+    <string name="remote_stop">关闭手机控制</string>
+    <string name="remote_info">打开青柠遥控小程序可自动发现此盒子，首次连接在电视上确认。也可用小程序扫描这里的二维码。二维码五分钟有效；浏览器离开前台时断开，回到前台可自动重连。</string>
+    <string name="remote_no_network">未找到局域网地址，请先连接 Wi-Fi 或网线。</string>
+    <string name="remote_error">手机控制启动失败，请重试。</string>
+    <string name="remote_pair_details">地址：%1$s\n端口：%2$d\n配对码：%3$s</string>
+    <string name="source_attribution">使用 Fedir Tsapana 的 TV Bro 源码开发。</string>
+    <string name="remote_approval_title">允许手机连接？</string>
+    <string name="remote_approval_info">局域网手机 %1$s 请求遥控此浏览器。允许后将记住这台手机，以后自动连接。</string>
+    <string name="remote_allow">允许并记住</string>
+</resources>

@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_name">TV Bro: 电视网络浏览器</string>
+  <string name="app_name">青柠浏览器</string>
   <string name="error">错误</string>
   <string name="ok">OK</string>
   <string name="loading">载入中…</string>
@@ -156,7 +156,7 @@
   <string name="home_page">主页</string>
   <string name="custom_home_page_url">自定义主页 URL</string>
   <string-array name="home_page_modes">
-    <item>TV Bro 主页</item>
+    <item>青柠主页</item>
     <item>搜索引擎</item>
     <item>自定义</item>
     <item>空白页</item>

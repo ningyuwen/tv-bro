@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_name">TV Bro: Webbrowser für TVs</string>
+  <string name="app_name">青柠浏览器</string>
   <string name="error">Fehler</string>
   <string name="ok">OK</string>
   <string name="loading">Lade…</string>
@@ -156,7 +156,7 @@
   <string name="home_page">Startseite</string>
   <string name="custom_home_page_url">Benutzerdefinierte Startseiten-URL</string>
   <string-array name="home_page_modes">
-    <item>TV Bro Home</item>
+    <item>Lime Home</item>
     <item>Suchmaschine</item>
     <item>Brauch</item>
     <item>Leer</item>

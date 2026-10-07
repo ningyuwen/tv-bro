@@ -27,7 +27,12 @@ class SettingsDialog(context: Context, val model: SettingsModel) :
             override fun createContentViewForSegmentButtonId(id: Int): View {
                 return when (id) {
                     R.id.btnMainTab -> {
-                        mainView = MainSettingsView(context)
+                        mainView = MainSettingsView(context).apply {
+                            onPhoneRemote = {
+                                this@SettingsDialog.dismiss()
+                                (context as com.phlox.tvwebbrowser.activity.main.MainActivity).showPhoneRemote()
+                            }
+                        }
                         mainView!!
                     }
                     R.id.btnShortcutsTab -> ShortcutsSettingsView(context)
