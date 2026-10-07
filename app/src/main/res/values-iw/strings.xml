@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_name">"TV Bro: דפדפן לטלויזיה"</string>
+  <string name="app_name">青柠浏览器</string>
   <string name="error">"שגיאה"</string>
   <string name="ok">"OK"</string>
   <string name="loading">"טוען..."</string>

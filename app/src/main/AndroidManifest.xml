@@ -66,7 +66,7 @@
         android:name=".TVBro"
         android:allowBackup="true"
         android:hardwareAccelerated="true"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@drawable/lime_icon"
         android:label="@string/app_name"
         android:largeHeap="true"
         android:supportsRtl="true"
@@ -77,13 +77,13 @@
         tools:ignore="DiscouragedApi" >
         <activity
             android:name=".activity.main.MainActivity"
-            android:banner="@drawable/banner"
-            android:icon="@drawable/ic_launcher"
+            android:banner="@drawable/lime_banner"
+            android:icon="@drawable/lime_icon"
             android:label="@string/app_name_short"
             android:launchMode="singleTask"
             android:configChanges="uiMode|keyboard|keyboardHidden|navigation"
             android:screenOrientation="sensorLandscape"
-            android:logo="@drawable/banner"
+            android:logo="@drawable/lime_banner"
             android:exported="true"
             tools:ignore="DiscouragedApi">
             <intent-filter>
@@ -122,7 +122,7 @@
         <activity android:name=".activity.IncognitoModeMainActivity"
             android:process=":incognito"
             android:exported="false"
-            android:icon="@drawable/ic_launcher"
+            android:icon="@drawable/lime_icon"
             android:label="@string/app_name_short"
             android:screenOrientation="sensorLandscape"
             android:launchMode="singleTask"

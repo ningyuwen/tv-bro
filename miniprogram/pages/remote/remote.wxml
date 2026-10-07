@@ -1,0 +1,44 @@
+<view class="page">
+  <view class="masthead"><text class="eyebrow">LIME / TV REMOTE</text><text class="title">大屏浏览，小屏掌控。</text></view>
+  <view class="connection"><view class="dot {{connected ? 'online' : ''}}"></view><text>{{status}}</text></view>
+  <view wx:if="{{!connected}}" class="pair card">
+    <text class="section-title">连接你的电视</text>
+    <text class="hint">电视打开青柠浏览器，小程序会自动寻找盒子。首次连接只需在电视上选择「允许并记住」。</text>
+    <view wx:for="{{devices}}" wx:key="deviceId" class="device"><button data-index="{{index}}" bindtap="choose" disabled="{{busy}}">{{item.name}} · {{item.host}}</button></view>
+    <button class="primary" bindtap="find" loading="{{busy}}" disabled="{{busy}}">{{busy ? '正在连接…' : '重新寻找电视'}}</button>
+    <button class="quiet" bindtap="scan" disabled="{{busy}}">扫码配对（备用）</button>
+    <button class="quiet" bindtap="toggleManual">{{manual ? '收起' : '手动输入地址'}}</button>
+    <view wx:if="{{manual}}" class="manual">
+      <input placeholder="盒子地址，例如 192.168.2.130" value="{{host}}" data-field="host" bindinput="field" />
+      <view class="row"><input type="number" placeholder="端口" value="{{port}}" data-field="port" bindinput="field" /><input type="number" maxlength="6" placeholder="配对码（可不填）" value="{{code}}" data-field="code" bindinput="field" /></view>
+      <button class="primary" loading="{{busy}}" disabled="{{busy}}" bindtap="connect">连接</button>
+    </view>
+    <text class="footnote">手机与盒子连接同一 Wi-Fi，无需电脑常驻。</text>
+  </view>
+  <block wx:else>
+    <view class="trackpad" catchtouchstart="touchStart" catchtouchmove="touchMove" catchtouchend="touchEnd" catchtouchcancel="touchCancel">
+      <text class="pad-symbol">＋</text><text class="pad-title">触控板</text><text class="pad-hint">单指移动 · 轻点点击 · 双指滚动</text>
+    </view>
+    <view class="quick grid">
+      <button data-op="back" bindtap="command">← 返回</button><button data-op="home" bindtap="command">⌂ 首页</button><button data-op="refresh" bindtap="command">↻ 刷新</button>
+      <button data-op="menu" bindtap="command">☰ 菜单</button><button data-op="nextTab" bindtap="command">▣ 标签</button><button data-op="playPause" bindtap="command">播放 / 暂停</button>
+    </view>
+    <view class="card input-card"><text class="section-title">手机输入</text>
+      <textarea placeholder="输入网址、搜索词或网页文字" value="{{text}}" maxlength="4096" data-field="text" bindinput="field" />
+      <view class="row"><button class="primary" data-op="open" bindtap="send">打开 / 搜索</button><button data-op="text" bindtap="send">输入到网页</button></view>
+      <text class="footnote">输入到网页前，先点中电视网页的输入框。</text>
+    </view>
+    <view class="card"><view class="row"><button data-op="newTab" bindtap="command">新标签</button><button data-op="closeTab" bindtap="command">关闭标签</button><button data-op="forward" bindtap="command">前进 →</button></view></view>
+    <view class="card">
+      <button class="directions-toggle" bindtap="toggleDirections"><text>指针微调</text><text>{{showDirections ? '收起 −' : '展开 ＋'}}</text></button>
+      <block wx:if="{{showDirections}}">
+        <text class="directions-hint">每次移动一小步，方便精准点中链接。中间键点击当前指针位置；快速移动和滚动请用触控板。</text>
+        <view class="dpad">
+          <button class="up" data-dx="0" data-dy="-32" bindtap="nudge">↑</button><button class="left" data-dx="-32" data-dy="0" bindtap="nudge">←</button><button class="ok" data-op="click" bindtap="command">点击</button><button class="right" data-dx="32" data-dy="0" bindtap="nudge">→</button><button class="down" data-dx="0" data-dy="32" bindtap="nudge">↓</button>
+        </view>
+      </block>
+    </view>
+    <button class="quiet" bindtap="disconnect">断开连接</button>
+  </block>
+  <text class="footer">青柠浏览器 · 家中局域网连接</text>
+</view>

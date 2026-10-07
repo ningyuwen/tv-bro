@@ -48,6 +48,7 @@ class VersionSettingsView @JvmOverloads constructor(
     }
 
     init {
+        vb.tvDescription.text = context.getString(R.string.source_attribution)
         vb.tvVersion.text = context.getString(R.string.version_s, BuildConfig.VERSION_NAME)
 
         vb.tvBuildFlavor.text = context.getString(
