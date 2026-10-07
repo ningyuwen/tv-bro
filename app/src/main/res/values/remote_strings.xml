@@ -1,0 +1,13 @@
+<resources>
+    <string name="phone_remote">Phone remote</string>
+    <string name="remote_enable">Enable and pair phone</string>
+    <string name="remote_stop">Stop phone control</string>
+    <string name="remote_info">Open Lime remote to discover this TV automatically. Approve the first connection on TV, or scan this QR in the mini program. QR expires in five minutes. Control disconnects in the background and reconnects when the browser returns.</string>
+    <string name="remote_no_network">No LAN address found. Connect the TV to Wi-Fi or Ethernet first.</string>
+    <string name="remote_error">Could not start phone control. Try again.</string>
+    <string name="remote_pair_details">Address: %1$s\nPort: %2$d\nPairing code: %3$s</string>
+    <string name="source_attribution">Uses TV Bro source code by Fedir Tsapana.</string>
+    <string name="remote_approval_title">Allow phone control?</string>
+    <string name="remote_approval_info">Phone %1$s on your local network requests control. Allow to remember this phone and connect automatically next time.</string>
+    <string name="remote_allow">Allow and remember</string>
+</resources>

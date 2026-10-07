@@ -9,6 +9,13 @@
     android:paddingRight="22dp"
     >
 
+    <Button
+        android:id="@+id/btnPhoneRemote"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/phone_remote"
+        android:background="@drawable/button_bg_selector" />
+
     <LinearLayout
         android:id="@+id/llWebEngine"
         android:layout_width="match_parent"
