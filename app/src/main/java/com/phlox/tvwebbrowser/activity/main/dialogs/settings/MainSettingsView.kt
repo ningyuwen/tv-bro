@@ -41,7 +41,10 @@ class MainSettingsView @JvmOverloads constructor(
     var adblockModel = ActiveModelsRepository.get(AdblockModel::class, activity!!)
     var config = AppContext.provideConfig()
 
+    var onPhoneRemote: (() -> Unit)? = null
+
     init {
+        vb.btnPhoneRemote.setOnClickListener { onPhoneRemote?.invoke() }
         initWebBrowserEngineSettingsUI()
 
         initHomePageAndSearchEngineConfigUI()

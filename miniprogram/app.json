@@ -1,0 +1,10 @@
+{
+  "pages": ["pages/remote/remote"],
+  "window": {
+    "navigationBarTitleText": "青柠遥控",
+    "navigationBarBackgroundColor": "#132d29",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f3f6f1"
+  },
+  "style": "v2"
+}
