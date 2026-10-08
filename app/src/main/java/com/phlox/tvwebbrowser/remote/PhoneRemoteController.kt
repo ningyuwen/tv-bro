@@ -1,9 +1,8 @@
 package com.phlox.tvwebbrowser.remote
 
-import android.app.Activity
-import android.app.Application
-import android.os.Bundle
 import android.app.AlertDialog
+import android.app.Activity
+import android.content.Context
 import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
@@ -12,43 +11,25 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.lifecycle.Lifecycle
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.MultiFormatWriter
 import com.phlox.tvwebbrowser.R
-import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONObject
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 class PhoneRemoteController(
-    private val activity: AppCompatActivity,
-    private val execute: (RemoteCommand, (Result<JSONObject>) -> Unit) -> Unit
+    context: Context,
+    private val foregroundActivity: () -> Activity?,
+    private val execute: (Activity, RemoteCommand, (Result<JSONObject>) -> Unit) -> Unit
 ) : AutoCloseable {
     private val handler = Handler(Looper.getMainLooper())
     private var server: PhoneRemoteServer? = null
-    var foregroundActivity: Activity? = null
-        private set
-    private var observingActivities = false
-    private val activityObserver = object : Application.ActivityLifecycleCallbacks {
-        override fun onActivityResumed(current: Activity) { foregroundActivity = current }
-        override fun onActivityPaused(current: Activity) {
-            if (foregroundActivity === current) foregroundActivity = null
-        }
-        override fun onActivityStopped(current: Activity) {
-            // Moving between browser screens keeps the endpoint alive; leaving the app closes it.
-            if (foregroundActivity == null) close()
-        }
-        override fun onActivityDestroyed(current: Activity) { if (current === activity) close() }
-        override fun onActivityCreated(current: Activity, state: Bundle?) {}
-        override fun onActivityStarted(current: Activity) {}
-        override fun onActivitySaveInstanceState(current: Activity, state: Bundle) {}
-    }
     private var dialog: AlertDialog? = null
     private var approvalDialog: AlertDialog? = null
     private var discovery: RemoteDiscoveryServer? = null
-    private val prefs = activity.getSharedPreferences("phone_remote", android.content.Context.MODE_PRIVATE)
+    private val prefs = context.applicationContext.getSharedPreferences("phone_remote", Context.MODE_PRIVATE)
     private val deviceId = prefs.getString("device_id", null) ?: java.util.UUID.randomUUID().toString().also {
         prefs.edit().putString("device_id", it).apply()
     }
@@ -56,11 +37,6 @@ class PhoneRemoteController(
     fun startIfEnabled() {
         if (!prefs.getBoolean("enabled", true) || server != null) return
         try {
-            if (!observingActivities) {
-                activity.application.registerActivityLifecycleCallbacks(activityObserver)
-                observingActivities = true
-                foregroundActivity = activity
-            }
             // Keep the existing single-phone credential when upgrading to multiple phones.
             val remembered = prefs.getStringSet("tokens", null)?.toSet()
                 ?: setOfNotNull(prefs.getString("token", null))
@@ -81,7 +57,8 @@ class PhoneRemoteController(
         val accepted = AtomicBoolean(false)
         val expired = AtomicBoolean(false)
         handler.post {
-            if (server !== expected || expected?.isRunning != true || !activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            val activity = foregroundActivity()
+            if (server !== expected || expected?.isRunning != true || activity == null) {
                 done.countDown()
                 return@post
             }
@@ -104,6 +81,7 @@ class PhoneRemoteController(
     }
 
     fun show() {
+        val activity = foregroundActivity() ?: return
         val addresses = PhoneRemoteServer.addresses()
         if (addresses.isEmpty()) {
             Toast.makeText(activity, R.string.remote_no_network, Toast.LENGTH_LONG).show()
@@ -118,6 +96,7 @@ class PhoneRemoteController(
     }
 
     private fun startPairing(addresses: List<String>) {
+        val activity = foregroundActivity() ?: return
         try {
             if (server == null) {
                 server = run { prefs.edit().putBoolean("enabled", true).apply(); startIfEnabled(); server ?: throw IllegalStateException() }
@@ -164,12 +143,22 @@ class PhoneRemoteController(
         var failure: Exception? = null
         handler.post {
             try {
-                require(!expired.get() && server === expected && expected?.isRunning == true &&
-                    foregroundActivity != null) { "background" }
+                require(!expired.get() && server === expected && expected?.isRunning == true) { "background" }
                 require(authorized()) { "unauthorized" }
-                dialog?.dismiss()
-                dialog = null
-                execute(command) { response ->
+                // A heartbeat can arrive between two Activities' pause/resume callbacks.
+                // It must not turn a normal page transition into a client-side disconnect.
+                val activity = foregroundActivity()
+                val isHeartbeat = command == RemoteCommand.Action("status")
+                if (isHeartbeat && activity == null) {
+                    done.countDown()
+                    return@post
+                }
+                require(activity != null) { "background" }
+                if (!isHeartbeat) {
+                    dialog?.dismiss()
+                    dialog = null
+                }
+                execute(activity, command) { response ->
                     if (!expired.get()) {
                         response.fold({ result = it }, { failure = it as? Exception ?: IllegalStateException(it) })
                         done.countDown()
@@ -186,17 +175,18 @@ class PhoneRemoteController(
         return result
     }
 
-    override fun close() {
-        if (observingActivities) activity.application.unregisterActivityLifecycleCallbacks(activityObserver)
-        observingActivities = false
-        foregroundActivity = null
-        discovery?.close()
-        discovery = null
+    fun dismissDialogs() {
         approvalDialog?.dismiss()
         approvalDialog = null
-        server?.close()
-        server = null
         dialog?.dismiss()
         dialog = null
+    }
+
+    override fun close() {
+        discovery?.close()
+        discovery = null
+        dismissDialogs()
+        server?.close()
+        server = null
     }
 }

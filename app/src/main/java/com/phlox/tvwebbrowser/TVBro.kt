@@ -11,6 +11,7 @@ import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
 import com.phlox.tvwebbrowser.activity.main.MainActivity
 import com.phlox.tvwebbrowser.model.HostConfig
+import com.phlox.tvwebbrowser.remote.PhoneRemoteSession
 import com.phlox.tvwebbrowser.singleton.AppDatabase
 import com.phlox.tvwebbrowser.singleton.FaviconsPool
 import com.phlox.tvwebbrowser.utils.activemodel.ActiveModelsRepository
@@ -38,6 +39,8 @@ class TVBro : Application(), Application.ActivityLifecycleCallbacks {
 
     var needToExitProcessAfterMainActivityFinish = false
     var needRestartMainActivityAfterExitingProcess = false
+    lateinit var phoneRemote: PhoneRemoteSession
+        private set
     override fun onCreate() {
         Log.i(TAG, "onCreate")
         super.onCreate()
@@ -69,6 +72,7 @@ class TVBro : Application(), Application.ActivityLifecycleCallbacks {
         }
 
         registerActivityLifecycleCallbacks(this)
+        phoneRemote = PhoneRemoteSession(this)
     }
 
     @Suppress("KotlinConstantConditions")

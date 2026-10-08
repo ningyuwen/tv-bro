@@ -50,3 +50,11 @@
 .direction-ok { grid-column: 2; grid-row: 2; }
 .direction-right { grid-column: 3; grid-row: 2; }
 .direction-down { grid-column: 2; grid-row: 3; }
+.quality-panel { border-top: 1rpx solid #e2e8df; margin-top: 24rpx; padding-top: 24rpx; }
+.quality-heading { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.quality-status { display: flex; flex-direction: column; min-width: 0; font-size: 26rpx; }
+.quality-target { color: #5d7269; font-size: 23rpx; margin-top: 8rpx; }
+.quality-heading .quality-toggle { flex-shrink: 0; width: auto; margin: 0; padding: 0 20rpx; font-size: 24rpx; }
+.quality-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12rpx; margin-top: 20rpx; }
+.quality-options .quality-option { width: 100%; min-width: 0; margin: 0; padding: 12rpx 8rpx; font-size: 24rpx; line-height: 1.6; }
+.quality-options .quality-selected { background: #e9f3df; color: #396b20; }

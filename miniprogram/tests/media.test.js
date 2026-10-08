@@ -188,3 +188,36 @@ test('fullscreen requires a supported TV and ignores repeated taps while a comma
   await pending
   assert.equal(p.data.fullscreenBusy, false)
 })
+
+function qualityState(current, id = 'a', optionId = 'q-2') {
+  return { ...current(id), quality: { supported: true, options: [{ id: 'q-1', label: '自动' },
+    { id: optionId, label: '720P' }], selectedId: 'q-1', currentHeight: 360 } }
+}
+test('quality choices send one command with the media and catalog snapshot', async () => {
+  const { page: p, calls, current } = page()
+  p.updateMedia(qualityState(current)); p.chooseQuality()
+  assert.equal(p.data.qualityChoices.length, 2)
+  await p.setQuality({ currentTarget: { dataset: { id: 'q-2', mediaId: 'a' } } })
+  assert.deepEqual(JSON.parse(JSON.stringify(calls[0])), { op: 'setQuality', fields: { qualityId: 'q-2', mediaId: 'a' } })
+  assert.equal(calls.length, 1)
+  assert.equal(p.data.qualityChoices.length, 0)
+})
+test('changed video, options and disconnect close the quality menu without sending stale choices', async () => {
+  for (const change of [(p, current) => p.updateMedia(qualityState(current, 'b')),
+    (p, current) => p.updateMedia(qualityState(current, 'a', 'q-new')), p => p.stopMediaPolling()]) {
+    const { page: p, calls, current } = page()
+    p.updateMedia(qualityState(current)); p.chooseQuality(); change(p, current)
+    assert.equal(p.data.qualityChoices.length, 0)
+    await p.setQuality({ currentTarget: { dataset: { id: 'q-2', mediaId: 'a' } } })
+    assert.equal(calls.length, 0)
+  }
+})
+test('old server has an update hint and loading a new source disables competing controls', async () => {
+  const { page: p, calls, current } = page()
+  p.qualitySupported = false; p.updateMedia(current())
+  assert.match(p.data.media.quality.hint, /更新电视/)
+  const loading = qualityState(current); loading.quality.switching = true
+  p.updateMedia(loading); p.chooseQuality(); p.seekStart()
+  await p.toggleMedia(); await p.skipMedia({ currentTarget: { dataset: { seconds: 10 } } })
+  assert.equal(p.seekSnapshot, null); assert.equal(p.data.qualityChoices.length, 0); assert.equal(calls.length, 0)
+})

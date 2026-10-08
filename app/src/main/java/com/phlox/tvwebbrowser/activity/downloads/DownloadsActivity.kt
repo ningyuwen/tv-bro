@@ -30,7 +30,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.util.*
 
-class DownloadsActivity : AppCompatActivity(), AdapterView.OnItemClickListener, ActiveDownloadsModel.Listener, AdapterView.OnItemLongClickListener{
+open class DownloadsActivity : AppCompatActivity(), AdapterView.OnItemClickListener, ActiveDownloadsModel.Listener, AdapterView.OnItemLongClickListener{
     private lateinit var vb: ActivityDownloadsBinding
     private lateinit var adapter: DownloadListAdapter
     private val listeners = ArrayList<ActiveDownloadsModel.Listener>()
@@ -55,6 +55,8 @@ class DownloadsActivity : AppCompatActivity(), AdapterView.OnItemClickListener, 
         Log.d(TAG, "onCreate this:" + System.identityHashCode(this))
         vb = ActivityDownloadsBinding.inflate(layoutInflater)
         setContentView(vb.root)
+        vb.remoteCursor.cursorEnabled = false
+        vb.remoteCursor.dpadCursorEnabled = false
 
         activeDownloadsModel = ActiveModelsRepository.get(ActiveDownloadsModel::class, this)
         downloadsHistoryModel = ActiveModelsRepository.get(DownloadsHistoryModel::class, this)
@@ -282,3 +284,6 @@ class DownloadsActivity : AppCompatActivity(), AdapterView.OnItemClickListener, 
         }
     }
 }
+
+// Keep native pages in the same process as the private browser session.
+class IncognitoDownloadsActivity : DownloadsActivity()

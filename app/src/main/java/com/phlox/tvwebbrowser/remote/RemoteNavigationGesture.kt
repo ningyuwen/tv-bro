@@ -1,10 +1,11 @@
 package com.phlox.tvwebbrowser.remote
 
 import kotlin.math.abs
+import java.lang.ref.WeakReference
 
 /** Turn a continuous drag into deliberate steps without flooding Android focus navigation. */
 class RemoteNavigationGesture {
-    private var target: Any? = null
+    private var target: WeakReference<Any>? = null
     private var x = 0f
     private var y = 0f
     private var lastMove = Long.MIN_VALUE
@@ -19,8 +20,8 @@ class RemoteNavigationGesture {
     }
 
     fun move(dx: Float, dy: Float, target: Any, now: Long): String? {
-        if (this.target !== target || lastMove == Long.MIN_VALUE || now - lastMove > 250) reset()
-        this.target = target
+        if (this.target?.get() !== target || lastMove == Long.MIN_VALUE || now - lastMove > 250) reset()
+        this.target = WeakReference(target)
         lastMove = now
         x = (x + dx).coerceIn(-112f, 112f)
         y = (y + dy).coerceIn(-112f, 112f)

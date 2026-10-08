@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
  * Created by fedex on 29.12.16.
  */
 
-class HistoryActivity : AppCompatActivity(), AdapterView.OnItemClickListener, AdapterView.OnItemLongClickListener{
+open class HistoryActivity : AppCompatActivity(), AdapterView.OnItemClickListener, AdapterView.OnItemLongClickListener{
 
     private lateinit var vb: ActivityHistoryBinding
     private var ibDelete: ImageButton? = null
@@ -53,6 +53,8 @@ class HistoryActivity : AppCompatActivity(), AdapterView.OnItemClickListener, Ad
         super.onCreate(savedInstanceState)
         vb = ActivityHistoryBinding.inflate(layoutInflater)
         setContentView(vb.root)
+        vb.remoteCursor.cursorEnabled = false
+        vb.remoteCursor.dpadCursorEnabled = false
 
         historyModel = ActiveModelsRepository.get(HistoryModel::class, this)
 
@@ -210,3 +212,6 @@ class HistoryActivity : AppCompatActivity(), AdapterView.OnItemClickListener, Ad
         const val KEY_URL = "url"
     }
 }
+
+// Keep native pages in the same process as the private browser session.
+class IncognitoHistoryActivity : HistoryActivity()

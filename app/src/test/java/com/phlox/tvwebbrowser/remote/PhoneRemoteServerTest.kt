@@ -255,4 +255,25 @@ class PhoneRemoteServerTest {
         }
         assertEquals(executed, count.get())
     }
+
+    @Test fun qualityCommandsRequireAuthorizationAndValidateOpaqueIdentifiers() {
+        val socket = socket()
+        val request = JSONObject().put("id", 2).put("op", "setQuality").put("mediaId", "video-1").put("qualityId", "catalog-q1-auto")
+        assertEquals("unauthorized", send(socket, request).getString("error"))
+        val token = paired(socket)
+        request.put("token", token)
+        assertTrue(send(socket, request).getBoolean("ok"))
+        val parsed = RemoteProtocol.parse(request) as RemoteCommand.Media
+        assertEquals("setQuality", parsed.action)
+        assertEquals("video-1", parsed.mediaId)
+        assertEquals("catalog-q1-auto", parsed.qualityId)
+        assertNull(parsed.seconds)
+        val executed = count.get()
+        for (invalid in listOf<Any>("", "x".repeat(129), 1080, "https://example/video.mp4", "a\nb")) {
+            assertEquals("invalid_quality", send(socket, JSONObject(request.toString()).put("qualityId", invalid)).getString("error"))
+        }
+        assertEquals("invalid_media", send(socket, JSONObject(request.toString()).put("mediaId", "")).getString("error"))
+        assertEquals(executed, count.get())
+        assertEquals(1, send(socket, JSONObject().put("id", 3).put("op", "info")).getInt("qualityControl"))
+    }
 }

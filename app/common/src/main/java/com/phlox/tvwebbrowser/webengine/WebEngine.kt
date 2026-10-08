@@ -41,8 +41,9 @@ interface WebEngine {
         callback(Result.failure(IllegalArgumentException("fullscreen_unsupported")))
     }
     fun togglePlayback()
-    /** Only media timing/state is returned; URLs and titles never leave the browser. */
-    fun controlMedia(action: String, seconds: Double?, mediaId: String?, callback: (Result<JSONObject>) -> Unit) {
+    /** Only media state and quality labels are returned; URLs and titles never leave the browser. */
+    fun controlMedia(action: String, seconds: Double?, mediaId: String?, qualityId: String? = null,
+        callback: (Result<JSONObject>) -> Unit) {
         callback(Result.failure(IllegalArgumentException("media_unsupported")))
     }
     suspend fun renderThumbnail(bitmap: Bitmap?): Bitmap?

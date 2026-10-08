@@ -214,13 +214,17 @@ class WebViewWebEngine(val tab: WebTabState) : WebEngine, CursorDrawerDelegate.C
     }
 
     private var mediaControlScript: String? = null
+    private var mediaQualityScript: String? = null
 
-    override fun controlMedia(action: String, seconds: Double?, mediaId: String?, callback: (Result<JSONObject>) -> Unit) {
+    override fun controlMedia(action: String, seconds: Double?, mediaId: String?, qualityId: String?, callback: (Result<JSONObject>) -> Unit) {
         val view = webView ?: return callback(Result.failure(IllegalArgumentException("not_ready")))
         val script = mediaControlScript ?: view.context.assets.open("media_control.js").bufferedReader().use { it.readText() }
             .also { mediaControlScript = it }
+        val quality = mediaQualityScript ?: view.context.assets.open("media_quality.js").bufferedReader().use { it.readText() }
+            .also { mediaQualityScript = it }
         val args = listOf(JSONObject.quote(action), seconds?.toString() ?: "null",
-            mediaId?.let(JSONObject::quote) ?: "null", (System.currentTimeMillis() + 1500).toString())
+            mediaId?.let(JSONObject::quote) ?: "null", (System.currentTimeMillis() + 1500).toString(),
+            qualityId?.let(JSONObject::quote) ?: "null", "($quality)")
         view.evaluateJavascript("JSON.stringify(($script)(${args.joinToString(",")}))") { raw ->
             callback(runCatching {
                 require(webView === view) { "media_changed" }

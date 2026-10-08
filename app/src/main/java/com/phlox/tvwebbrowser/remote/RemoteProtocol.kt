@@ -9,7 +9,8 @@ sealed class RemoteCommand {
     data class Text(val text: String) : RemoteCommand()
     data class Open(val text: String) : RemoteCommand()
     data class Action(val name: String) : RemoteCommand()
-    data class Media(val action: String, val seconds: Double? = null, val mediaId: String? = null) : RemoteCommand()
+    data class Media(val action: String, val seconds: Double? = null, val mediaId: String? = null,
+        val qualityId: String? = null) : RemoteCommand()
     data class Volume(val action: String, val percent: Int? = null, val muted: Boolean? = null) : RemoteCommand()
 }
 
@@ -45,6 +46,14 @@ object RemoteProtocol {
                 RemoteCommand.Volume(op, muted = value)
             }
             "mediaStatus" -> RemoteCommand.Media(op)
+            "setQuality" -> {
+                val mediaId = json.opt("mediaId")
+                require(mediaId is String && mediaId.length in 1..128) { "invalid_media" }
+                val qualityId = json.opt("qualityId")
+                require(qualityId is String && qualityId.length in 1..128 &&
+                    qualityId.matches(Regex("[a-zA-Z0-9-]+"))) { "invalid_quality" }
+                RemoteCommand.Media(op, mediaId = mediaId, qualityId = qualityId)
+            }
             "seekBy", "seekTo", "mediaToggle" -> {
                 val mediaId = json.opt("mediaId")
                 require(mediaId is String && mediaId.length in 1..128) { "invalid_media" }

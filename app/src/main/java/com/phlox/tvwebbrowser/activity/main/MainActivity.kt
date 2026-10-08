@@ -59,7 +59,6 @@ import com.phlox.tvwebbrowser.AppContext
 import com.phlox.tvwebbrowser.Config
 import com.phlox.tvwebbrowser.R
 import com.phlox.tvwebbrowser.TVBro
-import com.phlox.tvwebbrowser.remote.PhoneRemoteController
 import com.phlox.tvwebbrowser.remote.RemoteUiNavigator
 import com.phlox.tvwebbrowser.remote.RemoteNavigationGesture
 import com.phlox.tvwebbrowser.remote.RemoteCommand
@@ -67,7 +66,9 @@ import com.phlox.tvwebbrowser.remote.RemoteVolumeController
 import org.json.JSONObject
 import com.phlox.tvwebbrowser.activity.IncognitoModeMainActivity
 import com.phlox.tvwebbrowser.activity.downloads.DownloadsActivity
+import com.phlox.tvwebbrowser.activity.downloads.IncognitoDownloadsActivity
 import com.phlox.tvwebbrowser.activity.history.HistoryActivity
+import com.phlox.tvwebbrowser.activity.history.IncognitoHistoryActivity
 import com.phlox.tvwebbrowser.activity.main.dialogs.favorites.FavoriteEditorDialog
 import com.phlox.tvwebbrowser.activity.main.dialogs.favorites.FavoritesDialog
 import com.phlox.tvwebbrowser.activity.main.dialogs.settings.SettingsDialog
@@ -143,13 +144,12 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
     private var downloadIntent: Download? = null
     var openUrlInExternalAppDialog: AlertDialog? = null
     private var linkActionsMenu: PopupMenu? = null
-    private var phoneRemote: PhoneRemoteController? = null
 
     private var menuOverlayOpen = false
     private val remoteNavigationGesture = RemoteNavigationGesture()
 
     private fun remoteNavigationRoot(): View? {
-        val root = RemoteUiWindows.activeRoot(phoneRemote?.foregroundActivity ?: this)
+        val root = RemoteUiWindows.activeRoot(this)
         return root.takeIf { it !== window.decorView || menuOverlayOpen || vb.llBottomPanel.isVisible || vb.vCursorMenu.isVisible }
     }
 
@@ -187,10 +187,7 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
     }
 
     fun showPhoneRemote() {
-        if (phoneRemote == null) {
-            phoneRemote = PhoneRemoteController(this, ::executePhoneCommand)
-        }
-        phoneRemote!!.show()
+        TVBro.instance.phoneRemote.show()
     }
 
     private fun hideOverlayForPhone() {
@@ -208,11 +205,7 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
         vb.flWebViewContainer.visibility = View.VISIBLE
     }
 
-    private fun executePhoneCommand(command: RemoteCommand, complete: (Result<JSONObject>) -> Unit) {
-        val foreground = phoneRemote?.foregroundActivity ?: this
-        require(foreground === this || command is RemoteCommand.Move || command is RemoteCommand.Scroll ||
-            command is RemoteCommand.Text || command is RemoteCommand.Volume ||
-            (command is RemoteCommand.Action && command.name in setOf("status", "click", "back", "up", "down", "left", "right", "ok"))) { "background" }
+    internal fun executePhoneCommand(command: RemoteCommand, complete: (Result<JSONObject>) -> Unit) {
         if (command is RemoteCommand.Action && command.name == "toggleFullscreen") {
             val engine = tabsModel.currentTab.value?.webEngine
                 ?: throw IllegalArgumentException("not_ready")
@@ -226,7 +219,7 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
         } else if (command is RemoteCommand.Media) {
             val engine = tabsModel.currentTab.value?.webEngine
                 ?: throw IllegalArgumentException("not_ready")
-            engine.controlMedia(command.action, command.seconds, command.mediaId) { response ->
+            engine.controlMedia(command.action, command.seconds, command.mediaId, command.qualityId) { response ->
                 complete(response.mapCatching { media ->
                     require(tabsModel.currentTab.value?.webEngine === engine) { "media_changed" }
                     JSONObject().put("media", media)
@@ -270,7 +263,7 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
                 search(command.text)
             }
             is RemoteCommand.Text -> {
-                val focused = RemoteUiWindows.activeRoot(phoneRemote?.foregroundActivity ?: this).findFocus()
+                val focused = RemoteUiWindows.activeRoot(this).findFocus()
                 if (focused is android.widget.EditText) {
                     focused.setText(command.text)
                     focused.setSelection(focused.length())
@@ -500,12 +493,14 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
     }
 
     override fun showDownloads() {
-        startActivity(Intent(this@MainActivity, DownloadsActivity::class.java))
+        val page = if (config.incognitoMode) IncognitoDownloadsActivity::class.java else DownloadsActivity::class.java
+        startActivity(Intent(this, page))
     }
 
     override fun showHistory() {
+        val page = if (config.incognitoMode) IncognitoHistoryActivity::class.java else HistoryActivity::class.java
         startActivityForResult(
-                Intent(this@MainActivity, HistoryActivity::class.java),
+                Intent(this, page),
                 REQUEST_CODE_HISTORY_ACTIVITY)
         hideMenuOverlay()
     }
@@ -585,8 +580,6 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
 
     override fun onDestroy() {
         Log.d(TAG, "onDestroy")
-        phoneRemote?.close()
-        phoneRemote = null
         //here properties can be uninitialized in case of wrong activity for incognito mode
         //detection and force activity restart in onCreate()
         if (::tabsModel.isInitialized) {
@@ -872,8 +865,6 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
 
     override fun onResume() {
         super.onResume()
-        if (phoneRemote == null) phoneRemote = PhoneRemoteController(this, ::executePhoneCommand)
-        phoneRemote!!.startIfEnabled()
         val intentFilter = IntentFilter("android.net.conn.CONNECTIVITY_CHANGE")
         registerReceiver(mConnectivityChangeReceiver, intentFilter)
         tabsModel.currentTab.value?.webEngine?.onResume()
