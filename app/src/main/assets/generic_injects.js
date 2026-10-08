@@ -27,16 +27,10 @@ if (!window.tvBroClicksListener) {
 }
 
 // video playback control support
-Object.defineProperty(HTMLMediaElement.prototype, 'playing', {
-    get: function(){
-        return !!(this.currentTime > 0 && !this.paused && !this.ended && this.readyState > 2);
-    }
-})
-
 window.tvBroTogglePlayback = function() {
   var media = document.querySelector('video') || document.querySelector('audio');
   if (media) {
-      if (media.playing) {
+      if (media.currentTime > 0 && !media.paused && !media.ended && media.readyState > 2) {
         media.pause();
       } else {
         media.play();
@@ -67,8 +61,11 @@ window.tvBroFastForward = function() {
 }
 
 // context menu support
-window.addEventListener("touchstart", function(e) {
-    window.TVBRO_activeElement = e.target;
-    window.TVBRO_touchStartX = e.touches[0].clientX;
-    window.TVBRO_touchStartY = e.touches[0].clientY;
-});
+if (!window.tvBroTouchStartListener) {
+    window.tvBroTouchStartListener = function(e) {
+        window.TVBRO_activeElement = e.target;
+        window.TVBRO_touchStartX = e.touches[0].clientX;
+        window.TVBRO_touchStartY = e.touches[0].clientY;
+    };
+    window.addEventListener("touchstart", window.tvBroTouchStartListener);
+}
