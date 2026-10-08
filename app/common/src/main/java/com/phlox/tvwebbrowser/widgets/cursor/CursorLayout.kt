@@ -25,6 +25,8 @@ class CursorLayout @JvmOverloads constructor(context: Context, attrs: AttributeS
             setWillNotDraw(!value)
         }
     lateinit var cursorDrawerDelegate: CursorDrawerDelegate
+    // Native list pages use the pointer for phone input while retaining normal TV focus navigation.
+    var dpadCursorEnabled: Boolean = true
     private val inputEventsAdapter = DPADNavigationEventsAdapter(
         onEmulatedKeyEvent = { keyEvent ->
             cursorDrawerDelegate.dispatchKeyEvent(keyEvent)
@@ -64,7 +66,7 @@ class CursorLayout @JvmOverloads constructor(context: Context, attrs: AttributeS
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         Log.d("CursorLayout", "dispatchKeyEvent: $event")
 
-        if (willNotDraw()) return super.dispatchKeyEvent(event)
+        if (willNotDraw() || !dpadCursorEnabled) return super.dispatchKeyEvent(event)
 
         if (inputEventsAdapter.dispatchKeyEvent(event)) {
             return true
@@ -76,7 +78,7 @@ class CursorLayout @JvmOverloads constructor(context: Context, attrs: AttributeS
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
         Log.d("CursorLayout", "dispatchGenericMotionEvent: $event")
 
-        if (willNotDraw()) return super.dispatchGenericMotionEvent(event)
+        if (willNotDraw() || !dpadCursorEnabled) return super.dispatchGenericMotionEvent(event)
 
         if (inputEventsAdapter.dispatchGenericMotionEvent(event)) {
             return true

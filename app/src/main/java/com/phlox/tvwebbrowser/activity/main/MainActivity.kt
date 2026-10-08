@@ -58,13 +58,14 @@ import com.phlox.tvwebbrowser.AppContext
 import com.phlox.tvwebbrowser.Config
 import com.phlox.tvwebbrowser.R
 import com.phlox.tvwebbrowser.TVBro
-import com.phlox.tvwebbrowser.remote.PhoneRemoteController
 import com.phlox.tvwebbrowser.remote.RemoteCommand
 import com.phlox.tvwebbrowser.remote.RemoteVolumeController
 import org.json.JSONObject
 import com.phlox.tvwebbrowser.activity.IncognitoModeMainActivity
 import com.phlox.tvwebbrowser.activity.downloads.DownloadsActivity
+import com.phlox.tvwebbrowser.activity.downloads.IncognitoDownloadsActivity
 import com.phlox.tvwebbrowser.activity.history.HistoryActivity
+import com.phlox.tvwebbrowser.activity.history.IncognitoHistoryActivity
 import com.phlox.tvwebbrowser.activity.main.dialogs.favorites.FavoriteEditorDialog
 import com.phlox.tvwebbrowser.activity.main.dialogs.favorites.FavoritesDialog
 import com.phlox.tvwebbrowser.activity.main.dialogs.settings.SettingsDialog
@@ -140,13 +141,9 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
     private var downloadIntent: Download? = null
     var openUrlInExternalAppDialog: AlertDialog? = null
     private var linkActionsMenu: PopupMenu? = null
-    private var phoneRemote: PhoneRemoteController? = null
 
     fun showPhoneRemote() {
-        if (phoneRemote == null) {
-            phoneRemote = PhoneRemoteController(this, ::executePhoneCommand)
-        }
-        phoneRemote!!.show()
+        TVBro.instance.phoneRemote.show()
     }
 
     private fun hideOverlayForPhone() {
@@ -161,7 +158,7 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
         vb.flWebViewContainer.visibility = View.VISIBLE
     }
 
-    private fun executePhoneCommand(command: RemoteCommand, complete: (Result<JSONObject>) -> Unit) {
+    internal fun executePhoneCommand(command: RemoteCommand, complete: (Result<JSONObject>) -> Unit) {
         if (command is RemoteCommand.Action && command.name == "toggleFullscreen") {
             val engine = tabsModel.currentTab.value?.webEngine
                 ?: throw IllegalArgumentException("not_ready")
@@ -432,12 +429,14 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
     }
 
     override fun showDownloads() {
-        startActivity(Intent(this@MainActivity, DownloadsActivity::class.java))
+        val page = if (config.incognitoMode) IncognitoDownloadsActivity::class.java else DownloadsActivity::class.java
+        startActivity(Intent(this, page))
     }
 
     override fun showHistory() {
+        val page = if (config.incognitoMode) IncognitoHistoryActivity::class.java else HistoryActivity::class.java
         startActivityForResult(
-                Intent(this@MainActivity, HistoryActivity::class.java),
+                Intent(this, page),
                 REQUEST_CODE_HISTORY_ACTIVITY)
         hideMenuOverlay()
     }
@@ -800,8 +799,6 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
     }
 
     override fun onStop() {
-        phoneRemote?.close()
-        phoneRemote = null
         super.onStop()
         unbindService(downloadServiceConnection)
         downloadService = null
@@ -809,8 +806,6 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
 
     override fun onResume() {
         super.onResume()
-        if (phoneRemote == null) phoneRemote = PhoneRemoteController(this, ::executePhoneCommand)
-        phoneRemote!!.startIfEnabled()
         val intentFilter = IntentFilter("android.net.conn.CONNECTIVITY_CHANGE")
         registerReceiver(mConnectivityChangeReceiver, intentFilter)
         tabsModel.currentTab.value?.webEngine?.onResume()
