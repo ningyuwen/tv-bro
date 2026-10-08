@@ -106,7 +106,7 @@ function page() {
   definition.data.connected = true
   definition.mediaPollEpoch = 1
   definition.mediaRevision = 1
-  definition.client = { request: async (op, fields) => { calls.push({ op, fields }); return { media: current() } } }
+  definition.client = { canRequest: () => true, request: async (op, fields) => { calls.push({ op, fields }); return { media: current() } } }
   function current(id = 'a', position = 25) {
     return { available: true, mediaId: id, position, duration: 100, canSeek: true, seekStart: 0, seekEnd: 100, paused: false }
   }
@@ -220,4 +220,35 @@ test('old server has an update hint and loading a new source disables competing 
   p.updateMedia(loading); p.chooseQuality(); p.seekStart()
   await p.toggleMedia(); await p.skipMedia({ currentTarget: { dataset: { seconds: 10 } } })
   assert.equal(p.seekSnapshot, null); assert.equal(p.data.qualityChoices.length, 0); assert.equal(calls.length, 0)
+})
+
+test('playback requests preserve an open quality menu while blocking competing commands', async () => {
+  const { page: p, calls, current } = page()
+  p.updateMedia(qualityState(current)); p.chooseQuality()
+  let finish
+  p.client.request = op => { calls.push(op); return new Promise(resolve => { finish = resolve }) }
+  const pending = p.toggleMedia()
+  await p.skipMedia({ currentTarget: { dataset: { seconds: 10 } } })
+  await p.setQuality({ currentTarget: { dataset: { id: 'q-2', mediaId: 'a' } } })
+  p.chooseQuality(); p.seekStart()
+  await p.seekChange({ detail: { value: 900 } })
+  assert.deepEqual(calls, ['mediaToggle'])
+  assert.equal(p.data.qualityChoices.length, 2)
+  assert.equal(p.data.media.slider, 250)
+  finish({ media: qualityState(current) }); await pending
+  assert.equal(p.data.qualityChoices.length, 2)
+})
+
+test('transient media failures retain capabilities and menu; changed media invalidates them', async () => {
+  const { page: p, current } = page()
+  p.updateMedia(qualityState(current)); p.chooseQuality()
+  p.client.request = async () => { throw Object.assign(Error('超时'), { code: 'request_timeout' }) }
+  await p.toggleMedia()
+  assert.equal(p.data.media.available, true)
+  assert.equal(p.data.media.canSeek, true)
+  assert.equal(p.data.qualityChoices.length, 2)
+  p.client.request = async () => { throw Object.assign(Error('视频变化'), { code: 'media_changed' }) }
+  await p.toggleMedia()
+  assert.equal(p.data.media.available, false)
+  assert.equal(p.data.qualityChoices.length, 0)
 })

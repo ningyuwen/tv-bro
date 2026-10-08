@@ -8,14 +8,15 @@ const websites = [
   { id: 'netflix', name: 'Netflix', badge: 'N', color: '#c8202b', url: 'https://www.netflix.com/' }
 ]
 Page({
-  data: { connected: false, busy: false, status: '正在寻找电视…', host: '', port: '8877', code: '', text: '', manual: false, devices: [],
+  data: { connected: false, busy: false, connectionAction: '', status: '正在寻找电视…', host: '', port: '8877', code: '', text: '', manual: false, devices: [],
     navigation: false, focusedControl: '', showDirections: false, navigationSupported: false, media: emptyMedia(), mediaBusy: false, qualityChoices: [], fullscreenBusy: false, volume: emptyVolume(), volumeBusy: false, websites, openingWebsite: '' },
   onLoad() {
     this.epoch = 0
     this.discovery = new Discovery(wx)
     this.client = new RemoteClient(wx, message => {
       if (!this.data.connected) return
-      clearInterval(this.heartbeat)
+      this.epoch++
+      this.stopHeartbeat()
       this.stopMediaPolling()
       this.stopVolumePolling()
       this.clearMotion()
@@ -29,10 +30,10 @@ Page({
   field(event) { this.setData({ [event.currentTarget.dataset.field]: event.detail.value }) },
   toggleManual() { this.setData({ manual: !this.data.manual }) },
   async find() {
-    if (!this.visible || this.data.busy || this.data.connected) return
+    if (!this.visible || this.scanning || this.data.busy || this.data.connected) return
     clearTimeout(this.retry)
     const epoch = ++this.epoch
-    this.setData({ busy: true, devices: [], status: '正在寻找电视…' })
+    this.setData({ busy: true, connectionAction: 'find', devices: [], status: '正在寻找电视…' })
     const saved = readSession(wx)
     if (saved) {
       try {
@@ -49,12 +50,12 @@ Page({
     this.setData({ status: devices.length ? '发现多台电视，请选择' : '未找到电视，请打开电视上的青柠浏览器' })
   },
   async choose(value) {
-    if (this.data.busy) return
+    if (this.data.busy || this.scanning) return
     const device = value.currentTarget ? this.data.devices[value.currentTarget.dataset.index] : value
     if (!device) return
     const epoch = ++this.epoch
     const saved = readSession(wx)
-    this.setData({ busy: true, status: '正在连接电视…' })
+    this.setData({ busy: true, connectionAction: 'device', status: '正在连接电视…' })
     try { await this.attach(device, saved && saved.deviceId === device.deviceId ? saved : null, epoch) }
     catch (error) { if (epoch === this.epoch) { this.client.close(); if (this.visible) this.error(error) } }
     finally { if (epoch === this.epoch) this.setData({ busy: false }) }
@@ -91,26 +92,29 @@ Page({
     if (!this.visible || epoch !== this.epoch) throw new Error('连接取消')
     wx.setStorageSync('lime-session-v1', { host: device.host, port: Number(device.port), deviceId: info.deviceId, token: this.client.token })
     this.setData({ connected: true, busy: false, devices: [], status: '已连接青柠浏览器', code: '', manual: false })
-    clearInterval(this.heartbeat)
-    this.heartbeat = setInterval(() => this.client.request('status').catch(error => this.client.close(error)), 1000)
+    this.startHeartbeat()
     this.startMediaPolling()
     this.startVolumePolling()
   },
   scan() {
+    if (this.data.busy || this.scanning) return
+    this.scanning = true
     this.discovery.stop()
     wx.scanCode({ scanType: ['qrCode'], success: result => {
+      this.scanning = false
       try {
         const info = parsePairing(result.result)
         this.setData({ host: info.host, port: String(info.port), code: info.code })
         this.connect()
       } catch (error) { this.error(error) }
-    }, fail: error => { if (!/cancel/.test(error.errMsg)) this.error(new Error('无法扫码，请使用手动配对')) } })
+    }, fail: error => { if (!/cancel/.test(error.errMsg)) this.error(new Error('无法扫码，请使用手动配对')) },
+    complete: () => { this.scanning = false } })
   },
   async connect() {
-    if (this.data.busy) return
+    if (this.data.busy || this.scanning) return
     if (this.data.code && !/^\d{6}$/.test(this.data.code)) return this.error(new Error('请输入电视上的六位配对码'))
     const epoch = ++this.epoch
-    this.setData({ busy: true, status: '正在连接…' })
+    this.setData({ busy: true, connectionAction: 'connect', status: '正在连接…' })
     try { await this.attach({ host: this.data.host.trim(), port: this.data.port }, null, epoch, 6000, this.data.code || null) }
     catch (error) { if (epoch === this.epoch) { this.client.close(); if (this.visible) this.error(error) } }
     finally { if (epoch === this.epoch) this.setData({ busy: false }) }
@@ -118,7 +122,7 @@ Page({
   disconnect() {
     this.epoch++
     clearTimeout(this.retry)
-    clearInterval(this.heartbeat)
+    this.stopHeartbeat()
     this.stopMediaPolling()
     this.stopVolumePolling()
     if (this.discovery) this.discovery.stop()
@@ -127,8 +131,35 @@ Page({
     this.setData({ connected: false, navigation: false, focusedControl: '', busy: false, fullscreenBusy: false, status: '已断开，打开小程序可自动重连' })
   },
   error(error) {
-    this.setData({ status: error.message })
+    if (error.code !== 'client_busy') this.setData({ status: error.message })
     wx.showToast({ title: error.message, icon: 'none', duration: 2600 })
+  },
+  startHeartbeat() {
+    this.stopHeartbeat()
+    const epoch = this.heartbeatEpoch
+    let timeouts = 0
+    const poll = async () => {
+      if (!this.data.connected || epoch !== this.heartbeatEpoch) return
+      try {
+        await this.client.request('status')
+        timeouts = 0
+      } catch (error) {
+        // A late rejection from an old connection must never close the new one.
+        if (!this.data.connected || epoch !== this.heartbeatEpoch) return
+        if (error.code === 'request_timeout') {
+          if (++timeouts >= 2) { this.client.close(error); return }
+        } else if (!['client_busy', 'not_ready', 'rate_limited'].includes(error.code)) {
+          this.client.close(error)
+          return
+        } else if (error.code !== 'client_busy') timeouts = 0
+      }
+      if (this.data.connected && epoch === this.heartbeatEpoch) this.heartbeat = setTimeout(poll, 1000)
+    }
+    this.heartbeat = setTimeout(poll, 1000)
+  },
+  stopHeartbeat() {
+    clearTimeout(this.heartbeat)
+    this.heartbeatEpoch = (this.heartbeatEpoch || 0) + 1
   },
   updateUi(ui) {
     if (!ui || !['pointer', 'navigation'].includes(ui.mode)) return
@@ -175,7 +206,7 @@ Page({
     const epoch = this.mediaPollEpoch
     const poll = async () => {
       if (!this.data.connected || epoch !== this.mediaPollEpoch) return
-      if (!this.data.mediaBusy) {
+      if (!this.data.mediaBusy && this.client.canRequest('mediaStatus')) {
         const revision = this.mediaRevision
         try {
           const reply = await this.client.request('mediaStatus')
@@ -183,7 +214,7 @@ Page({
         } catch (error) {
           if (epoch === this.mediaPollEpoch && revision === this.mediaRevision) {
             this.seekSnapshot = null
-            this.setData({ media: emptyMedia(error.message), qualityChoices: [] })
+            this.setData({ 'media.hint': error.message })
           }
         }
       }
@@ -218,13 +249,17 @@ Page({
     this.seekSnapshot = null
     const epoch = this.mediaPollEpoch
     this.mediaRevision++
-    this.setData({ mediaBusy: true, qualityChoices: [] })
+    this.setData(op === 'setQuality' ? { mediaBusy: true, qualityChoices: [] } : { mediaBusy: true })
     try {
       const reply = await this.client.request(op, Object.assign({}, fields, { mediaId }))
       if (epoch === this.mediaPollEpoch) this.updateMedia(reply.media)
     } catch (error) {
       if (epoch === this.mediaPollEpoch) {
-        this.setData({ media: emptyMedia('正在重新读取视频状态…') })
+        if (error.code === 'media_changed') {
+          this.setData({ media: emptyMedia('正在重新读取视频状态…'), qualityChoices: [] })
+        } else {
+          this.setData({ 'media.hint': '正在重新读取视频状态…' })
+        }
         wx.showToast({ title: error.message, icon: 'none' })
       }
     } finally { if (epoch === this.mediaPollEpoch) this.setData({ mediaBusy: false }) }
@@ -244,6 +279,7 @@ Page({
       media.quality.options.map(option => Object.assign({}, option, { mediaId: media.mediaId })) })
   },
   setQuality(event) {
+    if (this.data.mediaBusy || this.data.media.quality.switching) return
     const { id, mediaId } = event.currentTarget.dataset
     if (mediaId !== this.data.media.mediaId || !this.data.qualityChoices.some(choice => choice.id === id && choice.mediaId === mediaId)) return
     return this.mediaCommand('setQuality', { qualityId: id }, mediaId)
@@ -266,7 +302,10 @@ Page({
     clearTimeout(this.seekReleaseTimer)
     const snapshot = this.seekSnapshot
     this.seekSnapshot = null
-    if (!snapshot || snapshot.mediaId !== this.data.media.mediaId) return
+    if (!snapshot || snapshot.mediaId !== this.data.media.mediaId || this.data.mediaBusy || this.data.media.quality.switching) {
+      this.setData({ 'media.slider': this.data.media.slider })
+      return
+    }
     return this.mediaCommand('seekTo', { seconds: sliderTarget(event.detail.value, snapshot) }, snapshot.mediaId)
   },
   seekCancel() { clearTimeout(this.seekReleaseTimer); this.seekSnapshot = null },
@@ -279,7 +318,7 @@ Page({
     const epoch = this.volumePollEpoch
     const poll = async () => {
       if (!this.data.connected || epoch !== this.volumePollEpoch) return
-      if (!this.data.volumeBusy && !this.volumeDrag) {
+      if (!this.data.volumeBusy && !this.volumeDrag && this.client.canRequest('volumeStatus')) {
         const revision = this.volumeRevision
         try {
           const reply = await this.client.request('volumeStatus')
@@ -288,7 +327,7 @@ Page({
           }
         } catch (error) {
           if (epoch === this.volumePollEpoch && revision === this.volumeRevision && !this.volumeDrag) {
-            this.setData({ volume: emptyVolume(error.message) })
+            this.setData({ 'volume.hint': error.message })
           }
         }
       }
@@ -315,7 +354,7 @@ Page({
       if (epoch === this.volumePollEpoch) this.setData({ volume: volumeView(reply.volume) })
     } catch (error) {
       if (epoch === this.volumePollEpoch) {
-        this.setData({ volume: emptyVolume('正在重新读取盒子音量…') })
+        this.setData({ 'volume.hint': '正在重新读取盒子音量…' })
         wx.showToast({ title: error.message, icon: 'none' })
       }
     } finally { if (epoch === this.volumePollEpoch) this.setData({ volumeBusy: false }) }
@@ -335,7 +374,10 @@ Page({
   volumeChange(event) {
     const drag = this.volumeDrag
     this.volumeCancel()
-    if (!drag || drag.epoch !== this.volumePollEpoch) return
+    if (!drag || drag.epoch !== this.volumePollEpoch || this.data.volumeBusy) {
+      this.setData({ 'volume.percent': this.data.volume.percent })
+      return
+    }
     return this.volumeCommand('setVolume', { percent: event.detail.value })
   },
   volumeCancel() {
@@ -343,7 +385,13 @@ Page({
     if (this.volumeDrag) this.setData({ volume: this.volumeDrag.volume })
     this.volumeDrag = null
   },
-  muteChange(event) { return this.volumeCommand('setMuted', { muted: event.detail.value }) },
+  muteChange(event) {
+    if (!this.data.connected || !this.data.volume.supported || this.data.volumeBusy) {
+      this.setData({ 'volume.muted': this.data.volume.muted })
+      return
+    }
+    return this.volumeCommand('setMuted', { muted: event.detail.value })
+  },
   async send(event) {
     if (!this.data.text.trim()) return
     try { await this.client.request(event.currentTarget.dataset.op, { text: this.data.text }) }
@@ -355,6 +403,14 @@ Page({
   },
   touchStart(event) {
     if (!this.data.connected) return
+    // An additional finger starts a new centroid, but keeps an already locked scroll axis.
+    const keepAxis = this.last && this.multi && event.touches.length > 1
+    const axis = keepAxis ? this.scrollAxis : null
+    const gestureId = keepAxis ? this.scrollGestureId : `${this.epoch}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+    this.clearMotion()
+    this.scrollAxis = axis
+    this.scrollGestureId = gestureId
+    this.scrollX = this.scrollY = 0
     this.startTime = Date.now()
     this.travel = 0
     this.multi = event.touches.length > 1
@@ -368,27 +424,62 @@ Page({
       this.multi = true
       this.count = event.touches.length
       this.last = point
+      this.scrollX = this.scrollY = 0
+      this.motion = null
       return
     }
-    const dx = point.x - this.last.x, dy = point.y - this.last.y
+    let dx = point.x - this.last.x, dy = point.y - this.last.y
     this.travel += Math.abs(dx) + Math.abs(dy)
     this.last = point
+    // Lifting one finger during a scroll must not turn the remainder into pointer input.
+    if (this.multi && this.count < 2) return
     const op = this.count > 1 ? 'scroll' : 'move'
+    if (op === 'scroll') {
+      if (!this.scrollAxis) {
+        this.scrollX += dx; this.scrollY += dy
+        const x = Math.abs(this.scrollX), y = Math.abs(this.scrollY)
+        if (Math.max(x, y) < 6 || (Math.max(x, y) < 16 && Math.max(x, y) < Math.min(x, y) * 1.35)) return
+        this.scrollAxis = x > y ? 'x' : 'y'
+        dx = this.scrollX; dy = this.scrollY
+      }
+      if (this.scrollAxis === 'x') dy = 0
+      else dx = 0
+    }
     // Aggregate touch events, then send at most one command per 32ms.
-    if (this.motion && this.motion.op !== op) this.flushMotion()
-    if (!this.motion) this.motion = { op, dx: 0, dy: 0 }
-    this.motion.dx += (op === 'scroll' ? -1 : 1) * dx * 2
-    this.motion.dy += (op === 'scroll' ? -1 : 1) * dy * 2
-    if (!this.motionTimer) this.motionTimer = setTimeout(() => this.flushMotion(), 32)
+    if (this.motion && this.motion.op !== op) this.motion = null
+    if (!this.motion) this.motion = { op, dx: 0, dy: 0, gestureId: this.scrollGestureId }
+    this.motion.dx = Math.max(-500, Math.min(500, this.motion.dx + (op === 'scroll' ? -1 : 1) * dx * 2))
+    this.motion.dy = Math.max(-500, Math.min(500, this.motion.dy + (op === 'scroll' ? -1 : 1) * dy * 2))
+    if (!this.motionTimer && (!this.motionFlight || this.motionFlight.epoch !== this.epoch)) this.motionTimer = setTimeout(() => this.flushMotion(), 32)
   },
   flushMotion() {
     clearTimeout(this.motionTimer)
     this.motionTimer = null
+    // Merge subsequent movement while the TV is replying, rather than filling its queue.
+    if (this.motionFlight && this.motionFlight.epoch === this.epoch) return
     const motion = this.motion
     this.motion = null
     if (!motion || !this.data.connected) return
     const dx = Math.max(-500, Math.min(500, motion.dx)), dy = Math.max(-500, Math.min(500, motion.dy))
-    this.client.request(motion.op, { dx, dy }).catch(error => this.error(error))
+    if (!dx && !dy) return
+    const revision = this.motionRevision
+    const epoch = this.epoch
+    const flight = { epoch }
+    this.motionFlight = flight
+    const fields = { dx, dy }
+    if (motion.op === 'scroll') fields.gestureId = motion.gestureId
+    this.client.request(motion.op, fields).catch(error => {
+      if (epoch === this.epoch && revision === this.motionRevision && this.data.connected) {
+        this.clearMotion()
+        if (error.code !== 'client_busy') this.error(error)
+      }
+    }).finally(() => {
+      if (this.motionFlight !== flight) return
+      this.motionFlight = null
+      if (this.motion && this.data.connected && epoch === this.epoch && !this.motionTimer) {
+        this.motionTimer = setTimeout(() => this.flushMotion(), 32)
+      }
+    })
   },
   touchEnd(event) {
     if (event.touches.length) { this.multi = true; this.last = this.point(event.touches); this.count = event.touches.length; return }
@@ -398,6 +489,10 @@ Page({
     }
     this.last = null
   },
-  clearMotion() { clearTimeout(this.motionTimer); this.motionTimer = null; this.motion = null; this.last = null },
+  clearMotion() {
+    clearTimeout(this.motionTimer); this.motionTimer = null; this.motion = null; this.last = null
+    this.scrollAxis = null; this.scrollX = this.scrollY = 0
+    this.motionRevision = (this.motionRevision || 0) + 1
+  },
   touchCancel() { this.clearMotion() }
 })

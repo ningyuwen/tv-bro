@@ -1,5 +1,6 @@
 // NDJSON over wx.createTCPSocket. No server domains or cloud relay required.
 const MAX_FRAME = 16384
+const MAX_PENDING = 8
 const ERRORS = {
   fullscreen_unsupported: '当前播放器或浏览器内核暂不支持全屏切换',
   fullscreen_failed: '无法进入全屏，请先在电视上播放视频后重试',
@@ -108,19 +109,23 @@ class RemoteClient {
     }
   }
   request(op, fields = {}, timeout = 4000) {
-    if (!this.socket) return Promise.reject(new Error('请先连接电视'))
-    if (this.pending.size >= 8) return Promise.reject(new Error('网络繁忙，请稍后重试'))
+    if (!this.socket) return Promise.reject(Object.assign(new Error('请先连接电视'), { code: 'disconnected' }))
+    // Keep one slot for liveness checks even during a burst of button presses.
+    if (!this.canRequest(op)) return Promise.reject(Object.assign(new Error('操作正在处理中，请稍候'), { code: 'client_busy' }))
     const id = ++this.sequence
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id)
         // Never automatically replay commands after a timeout.
-        reject(new Error('操作超时，请检查连接'))
+        reject(Object.assign(new Error('操作超时，请检查连接'), { code: 'request_timeout' }))
       }, timeout)
       this.pending.set(id, { resolve, reject, timer })
       try { this.socket.write(JSON.stringify(Object.assign({}, fields, { id, op, token: this.token })) + '\n') }
       catch (error) { clearTimeout(timer); this.pending.delete(id); reject(error) }
     })
+  }
+  canRequest(op) {
+    return !!this.socket && this.pending.size < (op === 'status' ? MAX_PENDING : MAX_PENDING - 1)
   }
   async pair(code) {
     const reply = await this.request('pair', { code })
