@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceRequest
@@ -153,6 +154,59 @@ class WebViewWebEngine(val tab: WebTabState) : WebEngine, CursorDrawerDelegate.C
 
     override fun hideFullscreenView() {
         webView?.hideCustomView()
+    }
+
+    private var fullscreenCommandPending = false
+    private var fullscreenControlScript: String? = null
+
+    override fun toggleFullscreen(callback: (Result<JSONObject>) -> Unit) {
+        val view = webView ?: return callback(Result.failure(IllegalArgumentException("not_ready")))
+        if (fullscreenCommandPending) return callback(Result.failure(IllegalArgumentException("rate_limited")))
+        if (fullScreenView != null) {
+            view.hideCustomView()
+            callback(Result.success(JSONObject().put("fullscreen", false)))
+            return
+        }
+        val script = fullscreenControlScript ?: view.context.assets.open("fullscreen_control.js")
+            .bufferedReader().use { it.readText() }.also { fullscreenControlScript = it }
+        val token = java.util.UUID.randomUUID().toString()
+        val deadline = System.currentTimeMillis() + 1400
+        fullscreenCommandPending = true
+        var finished = false
+        fun finish(result: Result<JSONObject>) {
+            if (finished) return
+            finished = true
+            fullscreenCommandPending = false
+            view.evaluateJavascript("($script)('cancel', ${JSONObject.quote(token)}, $deadline)", null)
+            callback(result)
+        }
+        fun run(action: String, ready: (JSONObject) -> Unit) {
+            view.evaluateJavascript("JSON.stringify(($script)('$action', ${JSONObject.quote(token)}, $deadline))") { raw ->
+                if (finished) return@evaluateJavascript
+                val result = runCatching {
+                    require(webView === view && view.isAttachedToWindow) { "media_changed" }
+                    require(System.currentTimeMillis() <= deadline) { "not_ready" }
+                    val value = JSONObject(JSONTokener(raw).nextValue() as? String ?: throw IllegalArgumentException("not_ready"))
+                    require(!value.has("error")) { value.getString("error") }
+                    value
+                }
+                result.fold(ready, { finish(Result.failure(it)) })
+            }
+        }
+        fun poll() {
+            run("poll") { result ->
+                if (result.optBoolean("pending")) view.postDelayed({ poll() }, 50)
+                else finish(Result.success(result))
+            }
+        }
+        // A real WebView key event supplies the activation required by the Fullscreen API.
+        run("prepare") {
+            view.requestFocus()
+            view.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_F8))
+            view.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_F8))
+            poll()
+        }
+        view.postDelayed({ finish(Result.failure(IllegalArgumentException("not_ready"))) }, 1500)
     }
 
     override fun togglePlayback() {

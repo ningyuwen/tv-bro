@@ -1,6 +1,8 @@
 // NDJSON over wx.createTCPSocket. No server domains or cloud relay required.
 const MAX_FRAME = 16384
 const ERRORS = {
+  fullscreen_unsupported: '当前播放器或浏览器内核暂不支持全屏切换',
+  fullscreen_failed: '无法进入全屏，请先在电视上播放视频后重试',
   invalid_seek: '播放位置无效',
   invalid_media: '请等待视频状态更新后重试',
   no_media: '当前页面未检测到可控制的视频',

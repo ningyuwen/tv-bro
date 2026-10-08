@@ -161,7 +161,17 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
     }
 
     private fun executePhoneCommand(command: RemoteCommand, complete: (Result<JSONObject>) -> Unit) {
-        if (command is RemoteCommand.Media) {
+        if (command is RemoteCommand.Action && command.name == "toggleFullscreen") {
+            val engine = tabsModel.currentTab.value?.webEngine
+                ?: throw IllegalArgumentException("not_ready")
+            hideOverlayForPhone()
+            engine.toggleFullscreen { response ->
+                complete(response.mapCatching {
+                    require(tabsModel.currentTab.value?.webEngine === engine) { "media_changed" }
+                    it
+                })
+            }
+        } else if (command is RemoteCommand.Media) {
             val engine = tabsModel.currentTab.value?.webEngine
                 ?: throw IllegalArgumentException("not_ready")
             engine.controlMedia(command.action, command.seconds, command.mediaId) { response ->

@@ -198,8 +198,10 @@ open class WebViewEx(context: Context, val callback: Callback, val jsInterface: 
             }
 
             override fun onHideCustomView() {
+                val hidden = fullscreenViewCallback ?: return
+                fullscreenViewCallback = null
                 callback.onHideCustomView()
-                fullscreenViewCallback?.onCustomViewHidden()
+                hidden.onCustomViewHidden()
             }
 
             override fun onProgressChanged(view: WebView, newProgress: Int) {

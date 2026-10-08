@@ -108,6 +108,16 @@ class PhoneRemoteServerTest {
         assertEquals("unauthorized", reply.getString("error"))
         assertEquals(0, count.get())
     }
+    @Test fun fullscreenCommandRequiresAuthorizationAndAdvertisesSupport() {
+        val socket = socket()
+        assertEquals(1, send(socket, JSONObject().put("id", 1).put("op", "info")).getInt("fullscreenControl"))
+        assertEquals("unauthorized", send(socket, JSONObject().put("id", 2).put("op", "toggleFullscreen")).getString("error"))
+        assertEquals(0, count.get())
+        val token = paired(socket)
+        assertEquals(RemoteCommand.Action("toggleFullscreen"), RemoteProtocol.parse(JSONObject().put("op", "toggleFullscreen")))
+        assertTrue(send(socket, JSONObject().put("id", 3).put("op", "toggleFullscreen").put("token", token)).getBoolean("ok"))
+        assertEquals(1, count.get())
+    }
     @Test fun pairedCommandsAndCodeReplay() {
         val socket = socket()
         val code = server.beginPairing()

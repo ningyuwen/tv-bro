@@ -37,6 +37,9 @@ interface WebEngine {
     fun onPause()
     fun onUpdateAdblockSetting(newState: Boolean)
     fun hideFullscreenView()
+    fun toggleFullscreen(callback: (Result<JSONObject>) -> Unit) {
+        callback(Result.failure(IllegalArgumentException("fullscreen_unsupported")))
+    }
     fun togglePlayback()
     /** Only media timing/state is returned; URLs and titles never leave the browser. */
     fun controlMedia(action: String, seconds: Double?, mediaId: String?, callback: (Result<JSONObject>) -> Unit) {

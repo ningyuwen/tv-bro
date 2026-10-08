@@ -15,7 +15,7 @@ sealed class RemoteCommand {
 object RemoteProtocol {
     const val MAX_FRAME_BYTES = 16384
     private val actions = setOf("click", "back", "forward", "refresh", "home", "menu", "playPause",
-        "nextTab", "newTab", "closeTab", "up", "down", "left", "right", "ok", "status")
+        "nextTab", "newTab", "closeTab", "toggleFullscreen", "up", "down", "left", "right", "ok", "status")
 
     fun parse(json: JSONObject): RemoteCommand {
         fun text(): String {

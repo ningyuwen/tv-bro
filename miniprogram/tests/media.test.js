@@ -172,3 +172,19 @@ test('a seek error recovers without replaying and an old connection cannot updat
   await pending
   assert.equal(p.data.media.available, false)
 })
+test('fullscreen requires a supported TV and ignores repeated taps while a command is pending', async () => {
+  const { page: p, calls, toasts } = page()
+  await p.toggleFullscreen()
+  assert.equal(calls.length, 0)
+  assert.match(toasts[0].title, /更新电视浏览器/)
+  p.fullscreenSupported = true
+  let resolve
+  p.client.request = op => { calls.push(op); return new Promise(done => { resolve = done }) }
+  const pending = p.toggleFullscreen()
+  await p.toggleFullscreen()
+  assert.deepEqual(calls, ['toggleFullscreen'])
+  assert.equal(p.data.fullscreenBusy, true)
+  resolve({ fullscreen: true })
+  await pending
+  assert.equal(p.data.fullscreenBusy, false)
+})

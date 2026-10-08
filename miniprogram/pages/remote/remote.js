@@ -8,7 +8,7 @@ const websites = [
 ]
 Page({
   data: { connected: false, busy: false, status: '正在寻找电视…', host: '', port: '8877', code: '', text: '', manual: false, devices: [],
-    media: emptyMedia(), mediaBusy: false, websites, openingWebsite: '' },
+    media: emptyMedia(), mediaBusy: false, fullscreenBusy: false, websites, openingWebsite: '' },
   onLoad() {
     this.epoch = 0
     this.discovery = new Discovery(wx)
@@ -17,7 +17,7 @@ Page({
       clearInterval(this.heartbeat)
       this.stopMediaPolling()
       this.clearMotion()
-      this.setData({ connected: false, busy: false, status: message })
+      this.setData({ connected: false, busy: false, fullscreenBusy: false, status: message })
       if (this.visible) this.retry = setTimeout(() => this.find(), 3000)
     })
   },
@@ -61,6 +61,7 @@ Page({
     await this.client.connect(device, timeout)
     const info = await this.client.request('info')
     this.mediaSupported = info.mediaControl === 1
+    this.fullscreenSupported = info.fullscreenControl === 1
     if (device.deviceId && info.deviceId !== device.deviceId) throw new Error('盒子地址已变化，正在重新查找')
     if (!/^[a-f0-9-]{36}$/.test(info.deviceId)) throw new Error('电视版本过旧，请更新青柠浏览器')
     if (!this.visible || epoch !== this.epoch) throw new Error('连接取消')
@@ -116,7 +117,7 @@ Page({
     if (this.discovery) this.discovery.stop()
     this.clearMotion()
     if (this.client) this.client.close()
-    this.setData({ connected: false, busy: false, status: '已断开，打开小程序可自动重连' })
+    this.setData({ connected: false, busy: false, fullscreenBusy: false, status: '已断开，打开小程序可自动重连' })
   },
   error(error) {
     this.setData({ status: error.message })
@@ -125,6 +126,15 @@ Page({
   async command(event) {
     try { await this.client.request(event.currentTarget.dataset.op) }
     catch (error) { this.error(error) }
+  },
+  async toggleFullscreen() {
+    if (!this.data.connected || this.data.fullscreenBusy) return
+    if (!this.fullscreenSupported) return this.error(new Error('请更新电视浏览器以使用全屏切换'))
+    const epoch = this.epoch
+    this.setData({ fullscreenBusy: true })
+    try { await this.client.request('toggleFullscreen') }
+    catch (error) { if (epoch === this.epoch) this.error(error) }
+    finally { if (epoch === this.epoch) this.setData({ fullscreenBusy: false }) }
   },
   async openWebsite(event) {
     if (!this.data.connected || this.data.openingWebsite) return

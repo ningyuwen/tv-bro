@@ -28,6 +28,7 @@
       <button data-op="back" bindtap="command">← 返回</button><button data-op="home" bindtap="command">⌂ 首页</button><button data-op="refresh" bindtap="command">↻ 刷新</button>
       <button data-op="menu" bindtap="command">☰ 菜单</button><button data-op="nextTab" bindtap="command">▣ 标签</button><button data-op="playPause" bindtap="command">播放 / 暂停</button>
       <button data-op="newTab" bindtap="command">新标签</button><button data-op="closeTab" bindtap="command">关闭标签</button>
+      <button bindtap="toggleFullscreen" disabled="{{fullscreenBusy}}">全屏 / 退出</button>
     </view>
     <view class="card media-card">
       <text class="section-title">视频进度</text>
