@@ -17,11 +17,22 @@
 需要 Java 21（Gradle 运行时）、Java 17（buildSrc 编译工具链）、Android SDK Platform 36 及 Build Tools 36.0.0。首次构建需联网下载依赖。`local.properties` 指向本地 SDK，不入库。若 JDK 在非标准路径，可传 `-Porg.gradle.java.installations.paths=/path/to/jdk17`。
 
 ```sh
-./gradlew :app:assembleFossGeckoExcludedDebug :app:testFossGeckoExcludedDebugUnitTest
+./gradlew :app:assembleFossGeckoIncludedRelease -PenableAbiSplits
+./gradlew :app:testFossGeckoIncludedDebugUnitTest
 node --test miniprogram/tests/*.test.js
 ```
 
-调试 APK：`app/build/outputs/apk/fossGeckoExcluded/debug/`。首版使用系统 WebView，构建不包含 Gecko；代码通过 WebEngine 和 CursorDrawerDelegate 公共接口处理控制输入。正式分发应使用自己的 release 签名。
+安装、交付和分发统一使用 Release，保留代码裁剪与优化，详见 [AGENTS.md](AGENTS.md)。双内核 APK：`app/build/outputs/apk/fossGeckoIncluded/release/`；极光 A4111 使用 `armeabi-v7a` 包。仅需系统 WebView 时可改用 `:app:assembleFossGeckoExcludedRelease`。单元测试使用 Debug 变体，不生成用于交付的 Debug APK。
+
+签名通过 `KEYSTORE_PATH`、`KEYSTORE_PASSWORD`、`KEY_ALIAS`、`KEY_PASSWORD` 环境变量配置。正式分发应使用自己的 release 签名；覆盖安装已有版本时必须保持签名兼容，不得擅自卸载应用或清除数据。
+
+## Release 覆盖安装（2026-10-09）
+
+极光 A4111（192.168.2.103）已从双内核 ARMv7 Debug 0.1.5（73）覆盖升级为同版本 Release。为保留现有数据，沿用旧安装的签名证书；该证书来自本机 debug keystore，但构建类型为 Release，`isDebuggable = false`，R8 裁剪与优化已执行。设备包管理器确认不再含 `DEBUGGABLE` 标记。
+
+实机验证原有两部手机授权与设备标识保持有效，标签数量保留，WebView 页面加载、视频状态、定位/快进/快退、播放/暂停、进入/退出全屏及音量查询通过。已关闭测试标签并回到原标签。Release 构建与必要 lint 检查通过，Android 单元测试 24 项通过、1 项原有跳过。未做 Debug/Release 性能对比测试。
+
+ARMv7 APK 从 155,810,755 字节减少为 149,915,171 字节；未压缩 DEX 代码从 17,893,116 字节减少为 3,255,224 字节。构建、签名核验、设备验证记录及升级前数据备份在本地忽略目录 `.local/release-upgrade/`，备份包含私有数据，不入库。
 
 ## 协议 v1
 
