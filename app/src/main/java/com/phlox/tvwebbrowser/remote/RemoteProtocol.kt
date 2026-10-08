@@ -9,6 +9,7 @@ sealed class RemoteCommand {
     data class Text(val text: String) : RemoteCommand()
     data class Open(val text: String) : RemoteCommand()
     data class Action(val name: String) : RemoteCommand()
+    data class Media(val action: String, val seconds: Double? = null, val mediaId: String? = null) : RemoteCommand()
 }
 
 object RemoteProtocol {
@@ -30,6 +31,19 @@ object RemoteProtocol {
             return n.toFloat()
         }
         return when (val op = json.getString("op")) {
+            "mediaStatus" -> RemoteCommand.Media(op)
+            "seekBy", "seekTo", "mediaToggle" -> {
+                val mediaId = json.opt("mediaId")
+                require(mediaId is String && mediaId.length in 1..128) { "invalid_media" }
+                val seconds = if (op == "mediaToggle") null else {
+                    val value = json.opt("seconds")
+                    require(value is Number) { "invalid_seek" }
+                    value.toDouble().also {
+                        require(it.isFinite() && if (op == "seekBy") it in -600.0..600.0 else it in 0.0..31536000.0) { "invalid_seek" }
+                    }
+                }
+                RemoteCommand.Media(op, seconds, mediaId)
+            }
             "move" -> RemoteCommand.Move(number("dx"), number("dy"))
             "scroll" -> RemoteCommand.Scroll(number("dx"), number("dy"))
             "text" -> RemoteCommand.Text(text())

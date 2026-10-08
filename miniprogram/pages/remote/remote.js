@@ -1,13 +1,26 @@
 const { RemoteClient, parsePairing } = require('../../lib/remote')
 const { Discovery, readSession } = require('../../lib/discovery')
+const { emptyMedia, mediaView, formatTime, sliderTarget } = require('../../lib/media')
+const websites = [
+  { id: 'youtube', name: 'YouTube', badge: '▶', color: '#d93025', url: 'https://www.youtube.com/' },
+  { id: 'bilibili', name: '哔哩哔哩', badge: '哔', color: '#d94d82', url: 'https://www.bilibili.com/' },
+  { id: 'tencent', name: '腾讯视频', badge: '腾', color: '#237dc0', url: 'https://v.qq.com/' },
+  { id: 'iqiyi', name: '爱奇艺', badge: '爱', color: '#39852b', url: 'https://www.iqiyi.com/' },
+  { id: 'youku', name: '优酷', badge: '优', color: '#1485a3', url: 'https://www.youku.com/' },
+  { id: 'mango', name: '芒果 TV', badge: '芒', color: '#bd6a0b', url: 'https://www.mgtv.com/' },
+  { id: 'cctv', name: '央视网', badge: '央', color: '#bc3541', url: 'https://tv.cctv.com/' },
+  { id: 'twitch', name: 'Twitch', badge: 'T', color: '#7950c7', url: 'https://www.twitch.tv/' }
+]
 Page({
-  data: { connected: false, busy: false, status: '正在寻找电视…', host: '', port: '8877', code: '', text: '', manual: false, devices: [], showDirections: false },
+  data: { connected: false, busy: false, status: '正在寻找电视…', host: '', port: '8877', code: '', text: '', manual: false, devices: [],
+    media: emptyMedia(), mediaBusy: false, websites, openingWebsite: '' },
   onLoad() {
     this.epoch = 0
     this.discovery = new Discovery(wx)
     this.client = new RemoteClient(wx, message => {
       if (!this.data.connected) return
       clearInterval(this.heartbeat)
+      this.stopMediaPolling()
       this.clearMotion()
       this.setData({ connected: false, busy: false, status: message })
       if (this.visible) this.retry = setTimeout(() => this.find(), 3000)
@@ -18,7 +31,6 @@ Page({
   onUnload() { this.visible = false; this.disconnect() },
   field(event) { this.setData({ [event.currentTarget.dataset.field]: event.detail.value }) },
   toggleManual() { this.setData({ manual: !this.data.manual }) },
-  toggleDirections() { this.setData({ showDirections: !this.data.showDirections }) },
   async find() {
     if (!this.visible || this.data.busy || this.data.connected) return
     clearTimeout(this.retry)
@@ -53,6 +65,7 @@ Page({
   async attach(device, saved, epoch, timeout = 6000, code) {
     await this.client.connect(device, timeout)
     const info = await this.client.request('info')
+    this.mediaSupported = info.mediaControl === 1
     if (device.deviceId && info.deviceId !== device.deviceId) throw new Error('盒子地址已变化，正在重新查找')
     if (!/^[a-f0-9-]{36}$/.test(info.deviceId)) throw new Error('电视版本过旧，请更新青柠浏览器')
     if (!this.visible || epoch !== this.epoch) throw new Error('连接取消')
@@ -77,6 +90,7 @@ Page({
     this.setData({ connected: true, busy: false, devices: [], status: '已连接青柠浏览器', code: '', manual: false })
     clearInterval(this.heartbeat)
     this.heartbeat = setInterval(() => this.client.request('status').catch(error => this.client.close(error)), 5000)
+    this.startMediaPolling()
   },
   scan() {
     this.discovery.stop()
@@ -101,6 +115,7 @@ Page({
     this.epoch++
     clearTimeout(this.retry)
     clearInterval(this.heartbeat)
+    this.stopMediaPolling()
     if (this.discovery) this.discovery.stop()
     this.clearMotion()
     if (this.client) this.client.close()
@@ -114,11 +129,101 @@ Page({
     try { await this.client.request(event.currentTarget.dataset.op) }
     catch (error) { this.error(error) }
   },
-  async nudge(event) {
-    const { dx, dy } = event.currentTarget.dataset
-    try { await this.client.request('move', { dx: Number(dx), dy: Number(dy) }) }
-    catch (error) { this.error(error) }
+  async openWebsite(event) {
+    if (!this.data.connected || this.data.openingWebsite) return
+    const website = websites.find(item => item.id === event.currentTarget.dataset.id)
+    if (!website) return
+    this.setData({ openingWebsite: website.id })
+    try {
+      await this.client.request('open', { text: website.url })
+      wx.showToast({ title: '已在电视打开' + website.name, icon: 'none' })
+    } catch (error) { this.error(error) }
+    finally { this.setData({ openingWebsite: '' }) }
   },
+  startMediaPolling() {
+    this.stopMediaPolling()
+    if (!this.mediaSupported) {
+      this.setData({ media: emptyMedia('请更新电视浏览器以使用视频进度控制') })
+      return
+    }
+    const epoch = this.mediaPollEpoch
+    const poll = async () => {
+      if (!this.data.connected || epoch !== this.mediaPollEpoch) return
+      if (!this.data.mediaBusy) {
+        const revision = this.mediaRevision
+        try {
+          const reply = await this.client.request('mediaStatus')
+          if (epoch === this.mediaPollEpoch && revision === this.mediaRevision) this.updateMedia(reply.media)
+        } catch (error) {
+          if (epoch === this.mediaPollEpoch && revision === this.mediaRevision) {
+            this.seekSnapshot = null
+            this.setData({ media: emptyMedia(error.message) })
+          }
+        }
+      }
+      if (this.data.connected && epoch === this.mediaPollEpoch) this.mediaTimer = setTimeout(poll, 1000)
+    }
+    poll()
+  },
+  stopMediaPolling() {
+    clearTimeout(this.mediaTimer)
+    clearTimeout(this.seekReleaseTimer)
+    this.mediaPollEpoch = (this.mediaPollEpoch || 0) + 1
+    this.mediaRevision = (this.mediaRevision || 0) + 1
+    this.seekSnapshot = null
+    this.setData({ media: emptyMedia(), mediaBusy: false })
+  },
+  updateMedia(value) {
+    const media = mediaView(value)
+    if (this.seekSnapshot) {
+      if (media.mediaId === this.seekSnapshot.mediaId && media.canSeek) return
+      this.seekSnapshot = null
+    }
+    this.setData({ media })
+  },
+  async mediaCommand(op, fields, mediaId) {
+    if (!this.data.connected || this.data.mediaBusy || !mediaId) return
+    this.seekSnapshot = null
+    const epoch = this.mediaPollEpoch
+    this.mediaRevision++
+    this.setData({ mediaBusy: true })
+    try {
+      const reply = await this.client.request(op, Object.assign({}, fields, { mediaId }))
+      if (epoch === this.mediaPollEpoch) this.updateMedia(reply.media)
+    } catch (error) {
+      if (epoch === this.mediaPollEpoch) {
+        this.setData({ media: emptyMedia('正在重新读取视频状态…') })
+        wx.showToast({ title: error.message, icon: 'none' })
+      }
+    } finally { if (epoch === this.mediaPollEpoch) this.setData({ mediaBusy: false }) }
+  },
+  skipMedia(event) {
+    if (!this.data.media.canSeek) return
+    return this.mediaCommand('seekBy', { seconds: Number(event.currentTarget.dataset.seconds) }, this.data.media.mediaId)
+  },
+  toggleMedia() { return this.mediaCommand('mediaToggle', {}, this.data.media.mediaId) },
+  seekStart() {
+    clearTimeout(this.seekReleaseTimer)
+    this.seekSnapshot = this.data.media.canSeek && !this.data.mediaBusy ? Object.assign({}, this.data.media) : null
+  },
+  seekEnd() {
+    // A tap without a value change may have no change event. Resume status updates anyway.
+    clearTimeout(this.seekReleaseTimer)
+    this.seekReleaseTimer = setTimeout(() => { this.seekSnapshot = null }, 500)
+  },
+  seekChanging(event) {
+    if (!this.seekSnapshot) return
+    const position = sliderTarget(event.detail.value, this.seekSnapshot)
+    this.setData({ 'media.slider': event.detail.value, 'media.currentLabel': formatTime(position) })
+  },
+  seekChange(event) {
+    clearTimeout(this.seekReleaseTimer)
+    const snapshot = this.seekSnapshot
+    this.seekSnapshot = null
+    if (!snapshot || snapshot.mediaId !== this.data.media.mediaId) return
+    return this.mediaCommand('seekTo', { seconds: sliderTarget(event.detail.value, snapshot) }, snapshot.mediaId)
+  },
+  seekCancel() { clearTimeout(this.seekReleaseTimer); this.seekSnapshot = null },
   async send(event) {
     if (!this.data.text.trim()) return
     try { await this.client.request(event.currentTarget.dataset.op, { text: this.data.text }) }

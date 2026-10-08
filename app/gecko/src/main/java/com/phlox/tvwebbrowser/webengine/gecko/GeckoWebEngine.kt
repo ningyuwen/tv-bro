@@ -47,6 +47,7 @@ import java.lang.ref.WeakReference
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
+import org.json.JSONObject
 
 class GeckoWebEngine(val tab: WebTabState): WebEngine,
     CursorDrawerDelegate.Callback {
@@ -419,6 +420,10 @@ class GeckoWebEngine(val tab: WebTabState): WebEngine,
                 it.pause()
             }
         }
+    }
+
+    override fun controlMedia(action: String, seconds: Double?, mediaId: String?, callback: (Result<JSONObject>) -> Unit) {
+        callback(runCatching { mediaSessionDelegate.control(action, seconds, mediaId) })
     }
 
     override fun stopPlayback() {
