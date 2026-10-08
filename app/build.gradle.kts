@@ -8,8 +8,8 @@ android {
 
     defaultConfig {
         applicationId = "org.limebrowser.tv"
-        versionCode = 76
-        versionName = "0.1.8"
+        versionCode = 78
+        versionName = "0.1.10"
 
         javaCompileOptions {
             annotationProcessorOptions {
