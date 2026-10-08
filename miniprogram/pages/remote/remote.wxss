@@ -33,3 +33,8 @@
 .media-time { display: flex; justify-content: space-between; color: #5d7269; font-size: 25rpx; font-variant-numeric: tabular-nums; }
 .media-card slider { margin: 20rpx 12rpx 28rpx; }
 .media-buttons button { font-size: 25rpx; padding: 0 8rpx; }
+.volume-heading, .volume-mute { display: flex; align-items: center; justify-content: space-between; }
+.volume-heading .section-title { margin-bottom: 0; }
+.volume-value { color: #5d7269; font-size: 28rpx; font-variant-numeric: tabular-nums; }
+.volume-card slider { margin: 24rpx 12rpx; }
+.volume-mute { font-size: 27rpx; }

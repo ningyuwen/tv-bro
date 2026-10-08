@@ -30,6 +30,14 @@
       <button data-op="newTab" bindtap="command">新标签</button><button data-op="closeTab" bindtap="command">关闭标签</button>
       <button bindtap="toggleFullscreen" disabled="{{fullscreenBusy}}">全屏 / 退出</button>
     </view>
+    <view class="card volume-card">
+      <view class="volume-heading"><text class="section-title">机顶盒音量</text><text class="volume-value">{{volume.ready ? volume.percent + '%' : '—'}}</text></view>
+      <slider min="0" max="100" step="1" value="{{volume.percent}}" disabled="{{!volume.supported || volumeBusy}}"
+        activeColor="#52962c" backgroundColor="#e2e8df" block-size="24"
+        bindtouchstart="volumeStart" bindtouchend="volumeEnd" bindchanging="volumeChanging" bindchange="volumeChange" bindtouchcancel="volumeCancel" />
+      <view class="volume-mute"><text>静音</text><switch color="#52962c" checked="{{volume.muted}}" disabled="{{!volume.supported || volumeBusy}}" bindchange="muteChange" /></view>
+      <text class="footnote">{{volume.hint}}</text>
+    </view>
     <view class="card media-card">
       <text class="section-title">视频进度</text>
       <view class="media-time"><text>{{media.currentLabel}}</text><text>{{media.durationLabel}}</text></view>

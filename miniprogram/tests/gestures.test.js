@@ -5,7 +5,7 @@ const vm = require('node:vm')
 function page() {
   let definition
   vm.runInNewContext(fs.readFileSync(require.resolve('../pages/remote/remote.js'), 'utf8'), {
-    require: path => path.endsWith('/media') ? require('../lib/media') : ({}), Page: value => { definition = value },
+    require: path => path.endsWith('/media') ? require('../lib/media') : path.endsWith('/volume') ? require('../lib/volume') : ({}), Page: value => { definition = value },
     setTimeout, clearTimeout, setInterval, clearInterval, Date
   })
   const calls = []

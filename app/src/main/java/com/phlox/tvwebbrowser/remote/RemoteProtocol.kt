@@ -10,6 +10,7 @@ sealed class RemoteCommand {
     data class Open(val text: String) : RemoteCommand()
     data class Action(val name: String) : RemoteCommand()
     data class Media(val action: String, val seconds: Double? = null, val mediaId: String? = null) : RemoteCommand()
+    data class Volume(val action: String, val percent: Int? = null, val muted: Boolean? = null) : RemoteCommand()
 }
 
 object RemoteProtocol {
@@ -31,6 +32,18 @@ object RemoteProtocol {
             return n.toFloat()
         }
         return when (val op = json.getString("op")) {
+            "volumeStatus" -> RemoteCommand.Volume(op)
+            "setVolume" -> {
+                val value = json.opt("percent")
+                require(value is Number && value.toDouble().isFinite() &&
+                    value.toDouble() in 0.0..100.0 && value.toDouble() == value.toInt().toDouble()) { "invalid_volume" }
+                RemoteCommand.Volume(op, percent = value.toInt())
+            }
+            "setMuted" -> {
+                val value = json.opt("muted")
+                require(value is Boolean) { "invalid_volume" }
+                RemoteCommand.Volume(op, muted = value)
+            }
             "mediaStatus" -> RemoteCommand.Media(op)
             "seekBy", "seekTo", "mediaToggle" -> {
                 val mediaId = json.opt("mediaId")

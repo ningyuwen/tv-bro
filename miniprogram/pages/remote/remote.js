@@ -1,6 +1,7 @@
 const { RemoteClient, parsePairing } = require('../../lib/remote')
 const { Discovery, readSession } = require('../../lib/discovery')
 const { emptyMedia, mediaView, formatTime, sliderTarget } = require('../../lib/media')
+const { emptyVolume, volumeView } = require('../../lib/volume')
 const websites = [
   { id: 'youtube', name: 'YouTube', badge: '▶', color: '#d93025', url: 'https://www.youtube.com/' },
   { id: 'bilibili', name: 'Bilibili', badge: '哔', color: '#d94d82', url: 'https://www.bilibili.com/' },
@@ -8,7 +9,7 @@ const websites = [
 ]
 Page({
   data: { connected: false, busy: false, status: '正在寻找电视…', host: '', port: '8877', code: '', text: '', manual: false, devices: [],
-    media: emptyMedia(), mediaBusy: false, fullscreenBusy: false, websites, openingWebsite: '' },
+    media: emptyMedia(), mediaBusy: false, fullscreenBusy: false, volume: emptyVolume(), volumeBusy: false, websites, openingWebsite: '' },
   onLoad() {
     this.epoch = 0
     this.discovery = new Discovery(wx)
@@ -16,6 +17,7 @@ Page({
       if (!this.data.connected) return
       clearInterval(this.heartbeat)
       this.stopMediaPolling()
+      this.stopVolumePolling()
       this.clearMotion()
       this.setData({ connected: false, busy: false, fullscreenBusy: false, status: message })
       if (this.visible) this.retry = setTimeout(() => this.find(), 3000)
@@ -62,6 +64,7 @@ Page({
     const info = await this.client.request('info')
     this.mediaSupported = info.mediaControl === 1
     this.fullscreenSupported = info.fullscreenControl === 1
+    this.volumeSupported = info.volumeControl === 1
     if (device.deviceId && info.deviceId !== device.deviceId) throw new Error('盒子地址已变化，正在重新查找')
     if (!/^[a-f0-9-]{36}$/.test(info.deviceId)) throw new Error('电视版本过旧，请更新青柠浏览器')
     if (!this.visible || epoch !== this.epoch) throw new Error('连接取消')
@@ -89,6 +92,7 @@ Page({
     clearInterval(this.heartbeat)
     this.heartbeat = setInterval(() => this.client.request('status').catch(error => this.client.close(error)), 5000)
     this.startMediaPolling()
+    this.startVolumePolling()
   },
   scan() {
     this.discovery.stop()
@@ -114,6 +118,7 @@ Page({
     clearTimeout(this.retry)
     clearInterval(this.heartbeat)
     this.stopMediaPolling()
+    this.stopVolumePolling()
     if (this.discovery) this.discovery.stop()
     this.clearMotion()
     if (this.client) this.client.close()
@@ -231,6 +236,80 @@ Page({
     return this.mediaCommand('seekTo', { seconds: sliderTarget(event.detail.value, snapshot) }, snapshot.mediaId)
   },
   seekCancel() { clearTimeout(this.seekReleaseTimer); this.seekSnapshot = null },
+  startVolumePolling() {
+    this.stopVolumePolling()
+    if (!this.volumeSupported) {
+      this.setData({ volume: emptyVolume('请更新电视浏览器以使用音量控制') })
+      return
+    }
+    const epoch = this.volumePollEpoch
+    const poll = async () => {
+      if (!this.data.connected || epoch !== this.volumePollEpoch) return
+      if (!this.data.volumeBusy && !this.volumeDrag) {
+        const revision = this.volumeRevision
+        try {
+          const reply = await this.client.request('volumeStatus')
+          if (epoch === this.volumePollEpoch && revision === this.volumeRevision && !this.volumeDrag) {
+            this.setData({ volume: volumeView(reply.volume) })
+          }
+        } catch (error) {
+          if (epoch === this.volumePollEpoch && revision === this.volumeRevision && !this.volumeDrag) {
+            this.setData({ volume: emptyVolume(error.message) })
+          }
+        }
+      }
+      if (this.data.connected && epoch === this.volumePollEpoch) this.volumeTimer = setTimeout(poll, 1000)
+    }
+    poll()
+  },
+  stopVolumePolling() {
+    clearTimeout(this.volumeTimer)
+    clearTimeout(this.volumeReleaseTimer)
+    this.volumePollEpoch = (this.volumePollEpoch || 0) + 1
+    this.volumeRevision = (this.volumeRevision || 0) + 1
+    this.volumeDrag = null
+    this.setData({ volume: emptyVolume(), volumeBusy: false })
+  },
+  async volumeCommand(op, fields) {
+    if (!this.data.connected || !this.data.volume.supported || this.data.volumeBusy) return
+    const epoch = this.volumePollEpoch
+    this.volumeRevision++
+    this.volumeCancel()
+    this.setData({ volumeBusy: true })
+    try {
+      const reply = await this.client.request(op, fields)
+      if (epoch === this.volumePollEpoch) this.setData({ volume: volumeView(reply.volume) })
+    } catch (error) {
+      if (epoch === this.volumePollEpoch) {
+        this.setData({ volume: emptyVolume('正在重新读取盒子音量…') })
+        wx.showToast({ title: error.message, icon: 'none' })
+      }
+    } finally { if (epoch === this.volumePollEpoch) this.setData({ volumeBusy: false }) }
+  },
+  volumeStart() {
+    clearTimeout(this.volumeReleaseTimer)
+    this.volumeDrag = this.data.connected && this.data.volume.supported && !this.data.volumeBusy
+      ? { epoch: this.volumePollEpoch, volume: Object.assign({}, this.data.volume) } : null
+  },
+  volumeEnd() {
+    clearTimeout(this.volumeReleaseTimer)
+    this.volumeReleaseTimer = setTimeout(() => this.volumeCancel(), 500)
+  },
+  volumeChanging(event) {
+    if (this.volumeDrag) this.setData({ 'volume.percent': event.detail.value })
+  },
+  volumeChange(event) {
+    const drag = this.volumeDrag
+    this.volumeCancel()
+    if (!drag || drag.epoch !== this.volumePollEpoch) return
+    return this.volumeCommand('setVolume', { percent: event.detail.value })
+  },
+  volumeCancel() {
+    clearTimeout(this.volumeReleaseTimer)
+    if (this.volumeDrag) this.setData({ volume: this.volumeDrag.volume })
+    this.volumeDrag = null
+  },
+  muteChange(event) { return this.volumeCommand('setMuted', { muted: event.detail.value }) },
   async send(event) {
     if (!this.data.text.trim()) return
     try { await this.client.request(event.currentTarget.dataset.op, { text: this.data.text }) }

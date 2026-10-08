@@ -60,6 +60,7 @@ import com.phlox.tvwebbrowser.R
 import com.phlox.tvwebbrowser.TVBro
 import com.phlox.tvwebbrowser.remote.PhoneRemoteController
 import com.phlox.tvwebbrowser.remote.RemoteCommand
+import com.phlox.tvwebbrowser.remote.RemoteVolumeController
 import org.json.JSONObject
 import com.phlox.tvwebbrowser.activity.IncognitoModeMainActivity
 import com.phlox.tvwebbrowser.activity.downloads.DownloadsActivity
@@ -186,6 +187,7 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
     private fun executePhoneCommandNow(command: RemoteCommand): JSONObject {
         val engine = tabsModel.currentTab.value?.webEngine
         when (command) {
+            is RemoteCommand.Volume -> return RemoteVolumeController(this).execute(command)
             is RemoteCommand.Media -> throw IllegalArgumentException("unknown_command")
             is RemoteCommand.Move -> {
                 require(engine != null) { "not_ready" }

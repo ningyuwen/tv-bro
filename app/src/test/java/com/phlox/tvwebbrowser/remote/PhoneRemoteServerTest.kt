@@ -57,6 +57,7 @@ class PhoneRemoteServerTest {
         val info = send(socket(), JSONObject().put("id", 1).put("op", "info"))
         assertTrue(info.getBoolean("ok"))
         assertFalse(info.has("token"))
+        assertEquals(1, info.getInt("volumeControl"))
         val authorization = send(socket(), JSONObject().put("id", 1).put("op", "authorize"))
         assertTrue(authorization.getBoolean("ok"))
         val token = authorization.getString("token")
@@ -226,6 +227,32 @@ class PhoneRemoteServerTest {
         }
         assertEquals("invalid_media", send(socket, JSONObject().put("id", 4).put("op", "seekTo")
             .put("token", token).put("seconds", 10)).getString("error"))
+        assertEquals(executed, count.get())
+    }
+
+    @Test fun volumeCommandsRequireAuthorizationAndValidateFields() {
+        val socket = socket()
+        for (op in listOf("volumeStatus", "setVolume", "setMuted")) {
+            assertEquals("unauthorized", send(socket, JSONObject().put("id", 1).put("op", op)).getString("error"))
+        }
+        val token = paired(socket)
+        for (percent in listOf(0, 50, 100)) {
+            assertTrue(send(socket, JSONObject().put("id", 2).put("op", "setVolume")
+                .put("percent", percent).put("token", token)).getBoolean("ok"))
+        }
+        for (muted in listOf(true, false)) {
+            assertTrue(send(socket, JSONObject().put("id", 3).put("op", "setMuted")
+                .put("muted", muted).put("token", token)).getBoolean("ok"))
+        }
+        val executed = count.get()
+        for (percent in listOf(-1, 101, 50.5, "50", true, JSONObject.NULL)) {
+            assertEquals("invalid_volume", send(socket, JSONObject().put("id", 4).put("op", "setVolume")
+                .put("percent", percent).put("token", token)).getString("error"))
+        }
+        for (muted in listOf("true", 1, JSONObject.NULL)) {
+            assertEquals("invalid_volume", send(socket, JSONObject().put("id", 5).put("op", "setMuted")
+                .put("muted", muted).put("token", token)).getString("error"))
+        }
         assertEquals(executed, count.get())
     }
 }

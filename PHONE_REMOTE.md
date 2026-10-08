@@ -33,6 +33,7 @@ UTF-8 JSON，每行一条，TCP 拆包在接收端缓冲至换行。每条请求
 - 视频进度扩展：`info` 返回 `mediaControl: 1`；`mediaStatus` 返回当前标签的 `media` 状态（`available`、`mediaId`、`paused`、`position`、`duration`、`canSeek`、`seekStart`、`seekEnd`，时间均为秒）。未检测到媒体时只返回 `available: false`。
 - `seekBy`：`seconds` 为 -600 到 600 的有限数字，小程序按钮使用 -10 / 10；`seekTo`：`seconds` 为 0 到 31536000 的有限数字；`mediaToggle`：播放/暂停。三种操作均须传最近状态中的 `mediaId`，视频或标签变化后旧标识失效。跳转会限制在实际可定位范围内。
 - 全屏扩展：`info` 返回 `fullscreenControl: 1`；已授权手机发送 `toggleFullscreen`，成功返回 `fullscreen` 布尔值。WebView 中优先选择可见且正在播放的视频，已全屏时通过原生接口退出。进入全屏通过一次原生按键提供网页所需的用户操作，不会重复执行超时请求。Gecko 内核暂返回 `fullscreen_unsupported`。
+- 机顶盒音量扩展：`info` 返回 `volumeControl: 1`；授权后的 `volumeStatus`、`setVolume`（`percent` 为 0–100 的整数）、`setMuted`（`muted` 为布尔值）均返回 `volume: { supported, percent, muted }`。控制系统媒体音量，独立于网页、WebView/Gecko 内核；返回值按盒子的实际音量档位折算。固定音量设备返回 `supported: false`，修改请求返回 `volume_unsupported`；系统拒绝修改返回 `volume_denied`。
 
 不自动重放超时或断线的指令。配对失败、未授权及参数错误不会进入 UI 执行；超过帧上限或非完整帧直接断开。主线程忙时返回未就绪，不补发已过期请求。
 

@@ -3,6 +3,9 @@ const MAX_FRAME = 16384
 const ERRORS = {
   fullscreen_unsupported: '当前播放器或浏览器内核暂不支持全屏切换',
   fullscreen_failed: '无法进入全屏，请先在电视上播放视频后重试',
+  invalid_volume: '音量参数无效',
+  volume_unsupported: '此盒子不支持软件调节音量，请使用电视或音响遥控器',
+  volume_denied: '系统未允许调节音量，请检查盒子声音设置',
   invalid_seek: '播放位置无效',
   invalid_media: '请等待视频状态更新后重试',
   no_media: '当前页面未检测到可控制的视频',

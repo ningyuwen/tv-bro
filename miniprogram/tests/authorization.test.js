@@ -18,6 +18,7 @@ function page(saved, failStatus = false) {
   p.epoch = 1
   p.setData = values => Object.assign(p.data, values)
   p.startMediaPolling = () => {}
+  p.startVolumePolling = () => {}
   p.client = {
     connect: async () => {},
     request: async op => {
