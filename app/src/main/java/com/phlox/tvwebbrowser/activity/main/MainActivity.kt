@@ -160,9 +160,23 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
         vb.flWebViewContainer.visibility = View.VISIBLE
     }
 
-    private fun executePhoneCommand(command: RemoteCommand): JSONObject {
+    private fun executePhoneCommand(command: RemoteCommand, complete: (Result<JSONObject>) -> Unit) {
+        if (command is RemoteCommand.Media) {
+            val engine = tabsModel.currentTab.value?.webEngine
+                ?: throw IllegalArgumentException("not_ready")
+            engine.controlMedia(command.action, command.seconds, command.mediaId) { response ->
+                complete(response.mapCatching { media ->
+                    require(tabsModel.currentTab.value?.webEngine === engine) { "media_changed" }
+                    JSONObject().put("media", media)
+                })
+            }
+        } else complete(runCatching { executePhoneCommandNow(command) })
+    }
+
+    private fun executePhoneCommandNow(command: RemoteCommand): JSONObject {
         val engine = tabsModel.currentTab.value?.webEngine
         when (command) {
+            is RemoteCommand.Media -> throw IllegalArgumentException("unknown_command")
             is RemoteCommand.Move -> {
                 require(engine != null) { "not_ready" }
                 hideOverlayForPhone()

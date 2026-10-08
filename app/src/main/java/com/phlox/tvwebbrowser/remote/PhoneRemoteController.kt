@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class PhoneRemoteController(
     private val activity: MainActivity,
-    private val execute: (RemoteCommand) -> JSONObject
+    private val execute: (RemoteCommand, (Result<JSONObject>) -> Unit) -> Unit
 ) : AutoCloseable {
     private val handler = Handler(Looper.getMainLooper())
     private var server: PhoneRemoteServer? = null
@@ -138,15 +138,20 @@ class PhoneRemoteController(
                 require(authorized()) { "unauthorized" }
                 dialog?.dismiss()
                 dialog = null
-                result = execute(command)
-            } catch (e: Exception) { failure = e }
-            finally { done.countDown() }
+                execute(command) { response ->
+                    if (!expired.get()) {
+                        response.fold({ result = it }, { failure = it as? Exception ?: IllegalStateException(it) })
+                        done.countDown()
+                    }
+                }
+            } catch (e: Exception) { failure = e; done.countDown() }
         }
         if (!done.await(2, TimeUnit.SECONDS)) {
             expired.set(true)
             throw IllegalArgumentException("not_ready")
         }
         failure?.let { throw it }
+        require(authorized()) { "unauthorized" }
         return result
     }
 

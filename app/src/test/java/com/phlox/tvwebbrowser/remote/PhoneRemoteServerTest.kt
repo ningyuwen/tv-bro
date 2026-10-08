@@ -165,4 +165,22 @@ class PhoneRemoteServerTest {
         server.close()
         assertEquals(-1, socket.getInputStream().read())
     }
+
+    @Test fun mediaCommandsRequireAuthorizationAndValidatePositions() {
+        val socket = socket()
+        assertEquals("unauthorized", send(socket, JSONObject().put("id", 1).put("op", "mediaStatus")).getString("error"))
+        val token = paired(socket)
+        for (op in listOf("mediaStatus", "seekBy", "seekTo", "mediaToggle")) {
+            assertTrue(send(socket, JSONObject().put("id", 2).put("op", op).put("token", token)
+                .put("mediaId", "video-1").put("seconds", 10)).getBoolean("ok"))
+        }
+        val executed = count.get()
+        for ((op, seconds) in listOf("seekBy" to 601, "seekBy" to -601, "seekTo" to -1, "seekTo" to "10")) {
+            assertEquals("invalid_seek", send(socket, JSONObject().put("id", 3).put("op", op).put("token", token)
+                .put("mediaId", "video-1").put("seconds", seconds)).getString("error"))
+        }
+        assertEquals("invalid_media", send(socket, JSONObject().put("id", 4).put("op", "seekTo")
+            .put("token", token).put("seconds", 10)).getString("error"))
+        assertEquals(executed, count.get())
+    }
 }
