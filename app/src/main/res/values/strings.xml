@@ -79,7 +79,7 @@
     <string name="main">Main</string>
     <string name="version_and_updates"><![CDATA[Version & updates]]></string>
     <string name="version_s">Version: %s</string>
-    <string name="build_flavor_s">Build flavor: %1$s · %2$s</string>
+    <string name="build_flavor_s">Build flavor: %1$s</string>
     <string name="support_the_author">☕ Support the author</string>
     <string name="view_license">📃 License</string>
     <string name="privacy_policy">🔒 Privacy policy</string>
@@ -174,7 +174,6 @@
         <item>Most Visited</item>
     </array>
 
-    <string name="web_browser_engine_temporary_setting">Web browser engine</string>
     <string name="need_restart_message">Restart app to apply changes</string>
     <string name="restart">Restart</string>
     <string name="yes">Yes</string>
@@ -182,8 +181,6 @@
     <string name="site_asks_to_open_unknown_url">Site asks to open unknown URL</string>
     <string name="site_asks_to_open_unknown_url_message">Do you want to open this URL in external app?</string>
     <string name="err_no_app_to_handle_url">Can not find suitable application to handle this URL</string>
-    <string name="settings_engine_change_gecko_msg">GeckoView loads a bit slower than WebView. Do you want to continue?</string>
-    <string name="settings_engine_change_webview_msg">WebView is updated separately from the main app. Do you want to continue?</string>
     <string name="http_auth_title">Authentication required</string>
     <string name="play_pause">Play/Pause</string>
     <string name="media_stop">Stop Media</string>

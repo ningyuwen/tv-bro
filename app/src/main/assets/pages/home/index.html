@@ -483,13 +483,7 @@ function renderLinks(mode, linksArray) {
                 c.favicon = url.origin + "/favicon.ico";
 
                 if (window.hasOwnProperty( "TVBro" )) {
-                    if (TVBro.requestFavicon) {
-                        //GeckoView
-                        TVBro.requestFavicon(urlStr);
-                    } else {
-                        //WebView
-                        c.favicon = "favicon://" + url.host;
-                    }                    
+                    c.favicon = "favicon://" + url.host;
                 }
             } catch (e) {
                 console.log("Invalid URL: " + urlStr);
@@ -586,16 +580,6 @@ function performSearch(text) {
     window.open(url, "_self");
 }
 
-//callback called from TVBro/GeckoView
-function onFaviconLoaded(url, data) {
-    let imgElements = document.getElementsByTagName("img");
-    for (let i = 0; i < imgElements.length; i++) {
-        if (imgElements[i].src == "favicon://" + url) {
-            imgElements[i].src = data;
-        }
-    }
-}
-
 function hideVoiceSearchUI() {
     document.getElementsByClassName("mic")[0].style.display = "none";
     document.getElementsByClassName("lenz")[0].style.display = "block";
@@ -628,10 +612,9 @@ document.getElementsByClassName("search_action_container")[0].onclick = function
     }
 };
 
-//there are three modes this page can run in:
+//there are two modes this page can run in:
 //1. Running inside ordinary web page - TVBro variable is not installed - no bookmarks, no voice search
 //2. Running inside TVBro WebView - TVBro variable is installed
-//3. Running inside TVBro GeckoView - TVBro variable is installed
 
 if (window.hasOwnProperty( "TVBro" )) {
     console.log("Running inside TVBro");

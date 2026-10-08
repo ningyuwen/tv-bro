@@ -18,7 +18,6 @@ import com.phlox.tvwebbrowser.model.WebTabState
 import com.phlox.tvwebbrowser.utils.Utils
 import com.phlox.tvwebbrowser.webengine.WebEngine
 import com.phlox.tvwebbrowser.webengine.WebEngineFactory
-import com.phlox.tvwebbrowser.webengine.WebEngineProvider
 import com.phlox.tvwebbrowser.webengine.WebEngineProviderCallback
 import com.phlox.tvwebbrowser.webengine.WebEngineWindowProviderCallback
 import com.phlox.tvwebbrowser.widgets.cursor.CursorDrawerDelegate
@@ -455,8 +454,8 @@ class WebViewWebEngine(val tab: WebTabState) : WebEngine, CursorDrawerDelegate.C
     }
 
     companion object {
-        init {
-            WebEngineFactory.registerProvider(WebEngineProvider("WebView", object : WebEngineProviderCallback {
+        fun registerProvider() {
+            WebEngineFactory.registerProvider(object : WebEngineProviderCallback {
                 override suspend fun initialize(context: Context, webViewContainer: CursorLayout) {
 
                 }
@@ -477,7 +476,7 @@ class WebViewWebEngine(val tab: WebTabState) : WebEngine, CursorDrawerDelegate.C
                     val webViewPackage = WebViewCompat.getCurrentWebViewPackage(AppContext.get())
                     return (webViewPackage?.packageName ?: "unknown") + ":" + (webViewPackage?.versionName ?: "unknown")
                 }
-            }))
+            })
         }
     }
 }

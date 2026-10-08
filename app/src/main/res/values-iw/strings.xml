@@ -78,7 +78,7 @@
   <string name="main">"ראשי"</string>
   <string name="version_and_updates">גרסא ועדכונים</string>
   <string name="version_s">"גרסא: %s"</string>
-  <string name="build_flavor_s">גרסת בנייה: %1$s · %2$s</string>
+  <string name="build_flavor_s">גרסת בנייה: %1$s</string>
   <string name="support_the_author">☕ תמיכה במחבר</string>
   <string name="view_license">📃 רישיון</string>
   <string name="privacy_policy">🔒 מדיניות פרטיות</string>
@@ -170,7 +170,6 @@
     <item>הכי ביקר</item>
   </string-array>
 
-  <string name="web_browser_engine_temporary_setting">מנוע דפדפן אינטרנט</string>
   <string name="need_restart_message">הפעל מחדש את האפליקציה כדי להחיל שינויים</string>
   <string name="restart">איתחול</string>
   <string name="yes">כן</string>
@@ -179,8 +178,6 @@
   <string name="site_asks_to_open_unknown_url_message">האם ברצונך לפתוח את כתובת האתר הזו באפליקציה חיצונית?</string>
   <string name="err_no_app_to_handle_url">לא ניתן למצוא אפליקציה מתאימה לטיפול בכתובת האתר הזו</string>
   <string name="home_page_links">קישורים בעמוד הבית</string>
-  <string name="settings_engine_change_gecko_msg">GeckoView נטען מעט לאט יותר מ-WebView. האם אתה רוצה להמשיך\?</string>
-  <string name="settings_engine_change_webview_msg">WebView מתעדכן בנפרד מהאפליקציה הראשית. האם אתה רוצה להמשיך\?</string>
   <string name="http_auth_title">נדרש אימות</string>
   <string name="play_pause">נגן / השהה</string>
   <string name="media_stop">עצור מדיה</string>

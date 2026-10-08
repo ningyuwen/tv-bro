@@ -11,7 +11,6 @@ import androidx.room.PrimaryKey
 import com.phlox.tvwebbrowser.AppContext
 import com.phlox.tvwebbrowser.utils.Utils
 import com.phlox.tvwebbrowser.webengine.WebEngineFactory
-import com.phlox.tvwebbrowser.webengine.isGecko
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONException
@@ -48,7 +47,8 @@ data class WebTabState(@PrimaryKey(autoGenerate = true)
 
         const val TAB_THUMBNAILS_DIR = "tabthumbs"
         const val TAB_WVSTATES_DIR = "wvstates"
-        const val GECKO_SESSION_STATE_HASH_PREFIX = "gecko:"
+        // Only retained to recognize incompatible sessions saved by older versions.
+        private const val LEGACY_SESSION_STATE_PREFIX = "gecko:"
     }
 
     @Ignore
@@ -126,9 +126,9 @@ data class WebTabState(@PrimaryKey(autoGenerate = true)
         AppContext.get().cacheDir.absolutePath + File.separator + TAB_THUMBNAILS_DIR + File.separator + hash + ".png"
 
     private fun getWVStatePath(hash: String): String {
-        return if (hash.startsWith(GECKO_SESSION_STATE_HASH_PREFIX)) {
+        return if (hash.startsWith(LEGACY_SESSION_STATE_PREFIX)) {
             AppContext.get().filesDir.absolutePath + File.separator + TAB_WVSTATES_DIR + File.separator + hash.substring(
-                GECKO_SESSION_STATE_HASH_PREFIX.length)
+                LEGACY_SESSION_STATE_PREFIX.length)
         } else {
             AppContext.get().filesDir.absolutePath + File.separator + TAB_WVSTATES_DIR + File.separator + hash
         }
@@ -151,65 +151,44 @@ data class WebTabState(@PrimaryKey(autoGenerate = true)
         thumbnailHash = null
     }
 
+    private fun discardLegacySessionState() {
+        val name = wvStateFileName ?: return
+        if (name.startsWith(LEGACY_SESSION_STATE_PREFIX)) {
+            File(getWVStatePath(name)).delete()
+            wvStateFileName = null
+        }
+    }
+
     fun restoreWebView(): Boolean {
-        var state = savedState
-        val stateFileName = wvStateFileName
+        discardLegacySessionState()
+        val state = savedState as? Bundle
         if (state != null) {
             webEngine.restoreState(state)
             return true
-        } else if (stateFileName != null) {
-            if (stateFileName.startsWith(GECKO_SESSION_STATE_HASH_PREFIX) xor webEngine.isGecko()) {
-                return false
-            }
-            try {
-                val stateBytes = File(getWVStatePath(stateFileName)).readBytes()
-                state = webEngine.stateFromBytes(stateBytes)
-                if (state == null) return false
-                this.savedState = state
-                webEngine.restoreState(state)
-                return true
-            } catch (e: Exception) {
-                e.printStackTrace()
-                return false
-            }
         }
-        return false
+        val stateFileName = wvStateFileName ?: return false
+        return try {
+            val stateBytes = File(getWVStatePath(stateFileName)).readBytes()
+            val restoredState = webEngine.stateFromBytes(stateBytes) as? Bundle ?: return false
+            savedState = restoredState
+            webEngine.restoreState(restoredState)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
     }
 
     fun saveWebViewStateToFile() {
-        val state = savedState
-        var stateFileName = wvStateFileName
-        if (stateFileName != null && (
-                    (webEngine.isGecko() && !stateFileName.startsWith(
-                        GECKO_SESSION_STATE_HASH_PREFIX
-                    )) ||
-                            ((!webEngine.isGecko()) && stateFileName.startsWith(
-                                GECKO_SESSION_STATE_HASH_PREFIX
-                            ))
-                    )) {
-            File(getWVStatePath(stateFileName)).delete()
-            stateFileName = null
-        }
-        if (state == null) return
-        val stateBytes = when (state) {
-            is Bundle -> {
-                Utils.bundleToBytes(state) ?: return
-            }
-            else -> {
-                state.toString().toByteArray(Charsets.UTF_8)
-            }
-        }
-        if (stateFileName == null) {
-            stateFileName = Utils.MD5_Hash(stateBytes) ?: return
-            if (webEngine.isGecko()) {
-                stateFileName = GECKO_SESSION_STATE_HASH_PREFIX + stateFileName
-            }
-        }
+        discardLegacySessionState()
+        val state = savedState as? Bundle ?: return
+        val stateBytes = Utils.bundleToBytes(state) ?: return
+        val name = wvStateFileName ?: Utils.MD5_Hash(stateBytes) ?: return
         try {
-            val statesDir = File(AppContext.get().filesDir.absolutePath + File.separator + TAB_WVSTATES_DIR)
+            val statesDir = File(AppContext.get().filesDir, TAB_WVSTATES_DIR)
             if (statesDir.exists() || statesDir.mkdir()) {
-                File(getWVStatePath(stateFileName)).writeBytes(stateBytes)
-                wvStateFileName = stateFileName
+                File(getWVStatePath(name)).writeBytes(stateBytes)
+                wvStateFileName = name
             }
         } catch (e: Exception) {
             e.printStackTrace()

@@ -33,12 +33,12 @@ ARMv7 Release 已通过 `adb install -r` 覆盖安装到极光 A4111，签名与
 需要 Java 21（Gradle 运行时）、Java 17（buildSrc 编译工具链）、Android SDK Platform 36 及 Build Tools 36.0.0。首次构建需联网下载依赖。`local.properties` 指向本地 SDK，不入库。若 JDK 在非标准路径，可传 `-Porg.gradle.java.installations.paths=/path/to/jdk17`。
 
 ```sh
-./gradlew :app:assembleFossGeckoIncludedRelease -PenableAbiSplits
-./gradlew :app:testFossGeckoIncludedDebugUnitTest
+./gradlew :app:assembleFossRelease -PenableAbiSplits
+./gradlew :app:testFossDebugUnitTest
 node --test miniprogram/tests/*.test.js
 ```
 
-安装、交付和分发统一使用 Release，保留代码裁剪与优化，详见 [AGENTS.md](AGENTS.md)。双内核 APK：`app/build/outputs/apk/fossGeckoIncluded/release/`；极光 A4111 使用 `armeabi-v7a` 包。仅需系统 WebView 时可改用 `:app:assembleFossGeckoExcludedRelease`。单元测试使用 Debug 变体，不生成用于交付的 Debug APK。
+安装、交付和分发统一使用 Release，保留代码裁剪与优化，详见 [AGENTS.md](AGENTS.md)。WebView APK：`app/build/outputs/apk/foss/release/`；极光 A4111 使用 `armeabi-v7a` 包。当前仅使用系统 WebView，不再提供内核变体。单元测试使用 Debug 变体，不生成用于交付的 Debug APK。
 
 签名通过 `KEYSTORE_PATH`、`KEYSTORE_PASSWORD`、`KEY_ALIAS`、`KEY_PASSWORD` 环境变量配置。正式分发应使用自己的 release 签名；覆盖安装已有版本时必须保持签名兼容，不得擅自卸载应用或清除数据。
 
@@ -66,10 +66,10 @@ UTF-8 JSON，每行一条，TCP 拆包在接收端缓冲至换行。每条请求
 - `click`、`back`、`forward`、`refresh`、`home`、`menu`、`playPause`、`nextTab`、`newTab`、`closeTab`、`up`、`down`、`left`、`right`、`ok`、`status`。
 - 视频进度扩展：`info` 返回 `mediaControl: 1`；`mediaStatus` 返回当前标签的 `media` 状态（`available`、`mediaId`、`paused`、`position`、`duration`、`canSeek`、`seekStart`、`seekEnd`，时间均为秒）。未检测到媒体时只返回 `available: false`。
 - `seekBy`：`seconds` 为 -600 到 600 的有限数字，小程序按钮使用 -10 / 10；`seekTo`：`seconds` 为 0 到 31536000 的有限数字；`mediaToggle`：播放/暂停。三种操作均须传最近状态中的 `mediaId`，视频或标签变化后旧标识失效。跳转会限制在实际可定位范围内。
-- 清晰度扩展：`info` 返回 `qualityControl: 1`；`mediaStatus` 的 `media.quality` 返回 `supported`、`options`（`id`、`label`）、`selectedId`、`currentHeight`、`switching` 和 `failed`。未支持的播放器不返回选项，Gecko 返回 `reason: engine_unsupported`。`currentHeight` 是实际解码视频的高度，0 表示尚未知，可能暂时与选中的档位不同。
+- 清晰度扩展：`info` 返回 `qualityControl: 1`；`mediaStatus` 的 `media.quality` 返回 `supported`、`options`（`id`、`label`）、`selectedId`、`currentHeight`、`switching` 和 `failed`。未支持的播放器不返回选项。`currentHeight` 是实际解码视频的高度，0 表示尚未知，可能暂时与选中的档位不同。
 - `setQuality`：携带最近状态的 `mediaId` 与选项的 `qualityId`，均为最长 128 字符的标识；`qualityId` 仅允许字母、数字和连字符。选项绑定当前播放器和清晰度列表，视频、标签或列表变化后旧指令返回 `media_changed` / `quality_changed`；不支持时返回 `quality_unsupported`。视频 URL 和播放器内部标识只留在网页内存中，不通过协议返回。
-- 全屏扩展：`info` 返回 `fullscreenControl: 1`；已授权手机发送 `toggleFullscreen`，成功返回 `fullscreen` 布尔值。WebView 中优先选择可见且正在播放的视频，已全屏时通过原生接口退出。进入全屏通过一次原生按键提供网页所需的用户操作，不会重复执行超时请求。Gecko 内核暂返回 `fullscreen_unsupported`。
-- 机顶盒音量扩展：`info` 返回 `volumeControl: 1`；授权后的 `volumeStatus`、`setVolume`（`percent` 为 0–100 的整数）、`setMuted`（`muted` 为布尔值）均返回 `volume: { supported, percent, muted }`。控制系统媒体音量，独立于网页、WebView/Gecko 内核；返回值按盒子的实际音量档位折算。固定音量设备返回 `supported: false`，修改请求返回 `volume_unsupported`；系统拒绝修改返回 `volume_denied`。
+- 全屏扩展：`info` 返回 `fullscreenControl: 1`；已授权手机发送 `toggleFullscreen`，成功返回 `fullscreen` 布尔值。WebView 中优先选择可见且正在播放的视频，已全屏时通过原生接口退出。进入全屏通过一次原生按键提供网页所需的用户操作，不会重复执行超时请求。
+- 机顶盒音量扩展：`info` 返回 `volumeControl: 1`；授权后的 `volumeStatus`、`setVolume`（`percent` 为 0–100 的整数）、`setMuted`（`muted` 为布尔值）均返回 `volume: { supported, percent, muted }`。控制系统媒体音量，独立于网页和系统 WebView；返回值按盒子的实际音量档位折算。固定音量设备返回 `supported: false`，修改请求返回 `volume_unsupported`；系统拒绝修改返回 `volume_denied`。
 
 不自动重放超时或断线的指令。配对失败、未授权及参数错误不会进入 UI 执行；超过帧上限或非完整帧直接断开。主线程忙时返回未就绪，不补发已过期请求。
 
@@ -89,7 +89,7 @@ UTF-8 JSON，每行一条，TCP 拆包在接收端缓冲至换行。每条请求
 
 小程序「视频进度」面板支持后退 / 快进 10 秒、播放 / 暂停、当前时间 / 总时长及拖动定位。连接新版浏览器后约每秒读取一次状态；拖动时显示预览时间，松手只发送一次跳转。断线、切换视频或标签会取消当前拖动，超时不重放。旧版浏览器会显示更新提示。
 
-WebView 在当前页面中优先选择全屏、可见、正在播放的媒体，兼容同源 iframe 和开放的 Shadow DOM；跨域 iframe、封闭 Shadow DOM 或外部播放器需要额外适配。Gecko 使用原生媒体会话，定位能力取决于播放器提供的时长和 seekTo 支持。未加载、无可定位范围和无限时长的直播会禁用进度调整。
+WebView 在当前页面中优先选择全屏、可见、正在播放的媒体，兼容同源 iframe 和开放的 Shadow DOM；跨域 iframe、封闭 Shadow DOM 或外部播放器需要额外适配。未加载、无可定位范围和无限时长的直播会禁用进度调整。
 
 普通和隐私模式使用相同接口。状态只回传随机媒体标识、时间和播放状态，不包含网页标题、视频地址，也不新增播放记录存储。切换隐私模式会切换进程，小程序需要重新连接。
 
@@ -101,7 +101,7 @@ WebView 在当前页面中优先选择全屏、可见、正在播放的媒体，
 
 首版基于 WebView 的通用适配：HLS.js 实例需通过当前媒体的 `hls` / `_hls` 或所在窗口的 `hls` 暴露，且实例的 `media` 必须匹配当前媒体；Video.js 通过所在窗口的 `videojs.getPlayers()` 与 `qualityLevels()` 插件读取清晰度；直连来源需为当前 video 的 `<source>`，具有 `data-res` / `res` / `size` / `label` 数字分辨率（如 `720` 或 `720p`）、可播放的 `video/mp4` / `video/webm` 类型和 HTTP(S) 地址，且当前来源属于该列表。仅有格式/编码备选、未标注来源、MSE/blob 视频及 DRM 视频不使用直连换源方式。没有扫描网页任意对象，0.1.6 未加入视频网站专用适配；YouTube 的后续适配见下文，Bilibili、Netflix 仍待适配。
 
-直连换源会在新来源 `loadedmetadata` 后恢复原位置和播放/暂停状态；切换中禁用面板内的进度与播放操作，最长等待 15 秒，错误、超时、来源变化或视频被移除时取消恢复。播放器接口换档交给原播放器处理。清晰度选项与旧菜单在切换视频、选项列表变化或断线时失效，指令不自动重放。状态仍只在内存中维护，普通/隐私 WebView 共用实现。Gecko 媒体会话暂未接入清晰度接口。
+直连换源会在新来源 `loadedmetadata` 后恢复原位置和播放/暂停状态；切换中禁用面板内的进度与播放操作，最长等待 15 秒，错误、超时、来源变化或视频被移除时取消恢复。播放器接口换档交给原播放器处理。清晰度选项与旧菜单在切换视频、选项列表变化或断线时失效，指令不自动重放。状态仍只在内存中维护，普通/隐私 WebView 共用实现。
 
 开发验证：61 项 JavaScript 测试通过；Android 单元测试 25 项通过、1 项上游原有跳过（含 18 项协议/服务端、4 项音量、3 项上游工具测试）。双内核 FOSS Release 0.1.6（versionCode 74）及 ARMv7、ARM64、x86_64 APK 构建成功，R8 优化与必要 lint 检查通过；微信开发者工具内置 WXML/WXSS 编译器编译通过，编译后模板渲染验证了清晰度选项、选中样式及媒体标识绑定。真实 Chrome + HLS.js 验证 1080P → 480P → 720P 及恢复自动档，实际分辨率改变且进度继续前进；真实 Video.js 验证手动限制到 288P，缓冲片段播放完后实际分辨率为 288P。具体视频网站仍需实际使用验证。
 
@@ -113,7 +113,7 @@ WebView 在当前页面中优先选择全屏、可见、正在播放的媒体，
 
 电视端增加 YouTube 网页播放器专用适配，仅在当前视频所属的 YouTube / youtube-nocookie.com 文档内识别包含该视频的 `.html5-video-player`。读取播放器的 `getAvailableQualityLevels()`，将实际存在的标准档位映射为分辨率，使用内部 `setPlaybackQualityRange()` 切换；不依赖已停用的公开 iframe 清晰度设置接口，不重新加载视频或直接替换媒体地址。接口缺失、视频信息未就绪或广告期间暂不提供切换，进度控制继续可用。
 
-清晰度选项绑定播放器、视频标识和档位列表，即使 YouTube 单页导航复用 video 元素或 blob URL，旧菜单也不能操作下一条视频。内部视频标识只保存在网页内存。初始已选档位未知时显示「尚未选择」，选择后显示遥控器请求的档位；实际画质仍来自 `videoHeight`，不会把请求成功当作已完成解码切换。小程序 0.1.6 已支持该协议，无需修改控制界面。适配依赖 YouTube 内部网页接口，网站改版可能需要维护；Gecko、跨域嵌入视频仍不支持。
+清晰度选项绑定播放器、视频标识和档位列表，即使 YouTube 单页导航复用 video 元素或 blob URL，旧菜单也不能操作下一条视频。内部视频标识只保存在网页内存。初始已选档位未知时显示「尚未选择」，选择后显示遥控器请求的档位；实际画质仍来自 `videoHeight`，不会把请求成功当作已完成解码切换。小程序 0.1.6 已支持该协议，无需修改控制界面。适配依赖 YouTube 内部网页接口，网站改版可能需要维护；跨域嵌入视频仍需额外适配。
 
 2026-10-09 验证：66 项 JavaScript 测试通过，Android 单元测试 25 项通过、1 项上游原有跳过；双内核 FOSS Release 0.1.7（75）各 ABI 构建成功，R8 和必要 lint 检查通过。ARMv7 APK 确认不可调试、签名兼容后覆盖安装到极光 A4111，原授权重连正常。微信模拟器控制实际电视 WebView 上的 YouTube 标准网页视频，验证可用档位列表（144P–2160P）及实际 360P → 720P → 1080P；暂停在 1:01 切回 360P 后原位置和暂停状态保留，随后恢复自动档并继续播放，临时测试标签已关闭。
 
@@ -136,7 +136,9 @@ FOSS + WebView Debug APK 构建成功，已安装在极光 A4111（Android 11）
 两个包名的数据互相隔离，当前原版没有应用内设置/书签导出入口，因此新浏览器不能直接读取或实时同步它的私有数据。盒子上的原版安装包标记了 ALLOW_BACKUP，运行 Android 11；可以进一步验证系统备份是否能导出，再做一次性偏好设置与书签迁移。尚未执行该备份或迁移，能否成功仍待验证；浏览器登录状态不承诺跨包名恢复。主题、搜索引擎、首页、UA 等可见配置可手动对齐。
 
 
-## 一次性迁移完成（2026-10-07）
+## 一次性迁移完成（2026-10-07，历史记录）
+
+以下保留当时验收事实；双内核、GeckoView 和旧构建命令不适用于当前单 WebView 版本。
 
 原版 2.1.6 的 ADB 全量备份成功，压缩流与 SQLite 完整性检查通过。原设置实际使用 GeckoView、自定义 Google 首页；已安装 FOSS 双内核 Debug 构建并恢复 GeckoView、首页模式、首页建议、搜索引擎及广告列表设置。8 个书签和 6 条站点配置在设备端与原版逐项一致，28 条原始历史全部保留，恢复原版的 1 个标签页网址；跨内核/包名的标签内部状态已清除后重新加载。保留青柠的版本元数据和手机遥控授权，已验证原手机 token 的状态请求继续正常。
 

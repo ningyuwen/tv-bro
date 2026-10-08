@@ -75,7 +75,7 @@
   <string name="main">主要</string>
   <string name="version_and_updates">版本与更新</string>
   <string name="version_s">版本: %s</string>
-  <string name="build_flavor_s">构建变体：%1$s · %2$s</string>
+  <string name="build_flavor_s">构建变体：%1$s</string>
   <string name="support_the_author">☕ 支持作者</string>
   <string name="view_license">📃 许可协议</string>
   <string name="privacy_policy">🔒 隐私政策</string>
@@ -167,7 +167,6 @@
     <item>最常访问</item>
   </string-array>
 
-  <string name="web_browser_engine_temporary_setting">浏览器引擎</string>
   <string name="need_restart_message">重新启动应用以应用此更改</string>
   <string name="restart">重新启动</string>
   <string name="yes">是</string>
@@ -176,8 +175,6 @@
   <string name="site_asks_to_open_unknown_url_message">您想允许此站点使用外部应用打开此 URL 吗?</string>
   <string name="err_no_app_to_handle_url">找不到合适的应用来处理此 URL</string>
   <string name="home_page_links">主页上的链接</string>
-  <string name="settings_engine_change_gecko_msg">GeckoView 的加载速度比 WebView 稍慢。你想继续吗？</string>
-  <string name="settings_engine_change_webview_msg">WebView 会独立于主应用进行更新。你想继续吗？</string>
   <string name="http_auth_title">需要身份验证</string>
   <string name="play_pause">播放/暂停</string>
   <string name="media_stop">停止媒体</string>

@@ -1,17 +1,14 @@
 package com.phlox.tvwebbrowser.activity.main.dialogs.settings
 
 import android.content.Context
-import android.os.Build
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.View
 import android.view.animation.AnimationUtils
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
-import android.widget.EditText
 import android.widget.ScrollView
 import android.widget.SeekBar
-import android.widget.Spinner
 import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
@@ -20,7 +17,6 @@ import com.phlox.tvwebbrowser.remote.RemoteUiWindows
 import com.phlox.tvwebbrowser.AppContext
 import com.phlox.tvwebbrowser.Config
 import com.phlox.tvwebbrowser.R
-import com.phlox.tvwebbrowser.TVBro
 import com.phlox.tvwebbrowser.activity.main.AdblockModel
 import com.phlox.tvwebbrowser.activity.main.MainActivity
 import com.phlox.tvwebbrowser.activity.main.SettingsModel
@@ -28,7 +24,6 @@ import com.phlox.tvwebbrowser.databinding.ViewSettingsMainBinding
 import com.phlox.tvwebbrowser.utils.activemodel.ActiveModelsRepository
 import com.phlox.tvwebbrowser.utils.activity
 import com.phlox.tvwebbrowser.webengine.WebEngineFactory
-import com.phlox.tvwebbrowser.webengine.webview.WebViewWebEngine
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -45,7 +40,6 @@ class MainSettingsView @JvmOverloads constructor(
 
     init {
         vb.btnPhoneRemote.setOnClickListener { onPhoneRemote?.invoke() }
-        initWebBrowserEngineSettingsUI()
 
         initHomePageAndSearchEngineConfigUI()
 
@@ -73,70 +67,6 @@ class MainSettingsView @JvmOverloads constructor(
                 Toast.makeText(context, android.R.string.ok, Toast.LENGTH_SHORT).show()
             }
         }
-    }
-
-    private fun initWebBrowserEngineSettingsUI() {
-        if (WebEngineFactory.getProviders().size == 1) {
-            vb.llWebEngine.visibility = View.GONE
-            return
-        }
-
-        val adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, Config.SupportedWebEngines)
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-
-        vb.spWebEngine.adapter = adapter
-
-        vb.spWebEngine.setSelection(Config.SupportedWebEngines.indexOf(config.webEngine), false)
-
-        vb.spWebEngine.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View, position: Int, id: Long) {
-                if (config.webEngine == Config.SupportedWebEngines[position]) return
-                if (Config.SupportedWebEngines[position] == Config.ENGINE_GECKO_VIEW && !Config.canRecommendGeckoView()) {
-                    RemoteUiWindows.alert(context)
-                        .setTitle(R.string.warning)
-                        .setMessage(R.string.settings_engine_change_gecko_msg)
-                        .setPositiveButton(R.string.ok) { _, _ ->
-                            config.webEngine = Config.SupportedWebEngines[position]
-                            showRestartDialog()
-                        }
-                        .setNegativeButton(R.string.cancel) { _, _ ->
-                            vb.spWebEngine.setSelection(Config.SupportedWebEngines.indexOf(config.webEngine), false)
-                        }
-                        .show()
-                    return
-                } else if (Config.SupportedWebEngines[position] == Config.ENGINE_WEB_VIEW) {
-                    RemoteUiWindows.alert(context)
-                        .setTitle(R.string.warning)
-                        .setMessage(R.string.settings_engine_change_webview_msg)
-                        .setPositiveButton(R.string.ok) { _, _ ->
-                            config.webEngine = Config.SupportedWebEngines[position]
-                            showRestartDialog()
-                        }
-                        .setNegativeButton(R.string.cancel) { _, _ ->
-                            vb.spWebEngine.setSelection(Config.SupportedWebEngines.indexOf(config.webEngine), false)
-                        }
-                        .show()
-                    return
-                }
-                config.webEngine = Config.SupportedWebEngines[position]
-                showRestartDialog()
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>) {}
-        }
-    }
-
-    private fun showRestartDialog() {
-        RemoteUiWindows.alert(context)
-            .setTitle(R.string.need_restart)
-            .setMessage(R.string.need_restart_message)
-            .setPositiveButton(R.string.exit) { _, _ ->
-                TVBro.instance.needToExitProcessAfterMainActivityFinish = true
-                TVBro.instance.needRestartMainActivityAfterExitingProcess = true
-                activity!!.finish()
-            }
-            .setCancelable(false)
-            .show()
     }
 
     private fun initThemeSettingsUI() {

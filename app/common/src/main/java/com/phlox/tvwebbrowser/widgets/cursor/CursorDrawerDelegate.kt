@@ -702,7 +702,6 @@ class CursorDrawerDelegate(val context: Context, val surface: View) {
         private const val USE_SCROLL_HACK = true
         private const val SCROLL_HACK_PADDING = 300
         //100ms more to let underlying view handle long press first
-        //idea to let geckoview handle long press first (and receive ContentDelegate.onContextMenu callback)
         //and if it doesn't handle it, then we handle it as long press
         private val LONG_PRESS_TIMEOUT = ViewConfiguration.getLongPressTimeout() + 100L
     }

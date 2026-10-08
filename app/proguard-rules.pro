@@ -9,7 +9,6 @@
 
 # Add any project specific keep options here:
 
--keep class com.phlox.tvwebbrowser.webengine.webview.WebViewWebEngine { *; }
 
 -keepclassmembers class com.phlox.tvwebbrowser.model.** {
    public *;

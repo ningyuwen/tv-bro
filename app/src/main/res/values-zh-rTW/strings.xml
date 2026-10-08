@@ -78,7 +78,7 @@
     <string name="main">主要</string>
     <string name="version_and_updates"><![CDATA[版本 & 更新]]></string>
     <string name="version_s">版本：%s</string>
-    <string name="build_flavor_s">建構變體：%1$s · %2$s</string>
+    <string name="build_flavor_s">建構變體：%1$s</string>
     <string name="support_the_author">☕ 支持作者</string>
     <string name="view_license">📃 授權條款</string>
     <string name="privacy_policy">🔒 隱私權政策</string>
@@ -139,7 +139,6 @@
     <string name="custom_home_page_url">自訂首頁網址</string>
     <string name="home_page_links">首頁顯示連結</string>
 
-    <string name="web_browser_engine_temporary_setting">網頁瀏覽器引擎</string>
     <string name="need_restart_message">重新啟動應用程式以套用變更</string>
     <string name="restart">重新啟動</string>
     <string name="yes">是</string>

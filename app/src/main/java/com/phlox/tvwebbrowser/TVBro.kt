@@ -79,16 +79,7 @@ class TVBro : Application(), Application.ActivityLifecycleCallbacks {
     private fun initWebEngineStuff() {
         Log.i(TAG, "initWebEngineStuff")
 
-        try {
-            Class.forName("com.phlox.tvwebbrowser.webengine.webview.WebViewWebEngine")
-        } catch (e: ClassNotFoundException) {
-            throw AssertionError(e) // WebViews are always available
-        }
-        try {
-            Class.forName("com.phlox.tvwebbrowser.webengine.gecko.GeckoWebEngine")
-        } catch (e: ClassNotFoundException) {
-            Log.w(TAG, "GeckoWebEngine not found")//it is ok
-        }
+        WebViewWebEngine.registerProvider()
 
         val cookieManager = CookieManager()
         CookieHandler.setDefault(cookieManager)

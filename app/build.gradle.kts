@@ -56,7 +56,7 @@ android {
         }
     }
 
-    flavorDimensions += listOf("appstore", "webengine")
+    flavorDimensions += "appstore"
     productFlavors {
         create("generic") {
             dimension = "appstore"
@@ -71,14 +71,6 @@ android {
             dimension = "appstore"
             applicationIdSuffix = ".foss"
             buildConfigField("Boolean", "BUILT_IN_AUTO_UPDATE", "false")
-        }
-
-        create("geckoIncluded") {
-            dimension = "webengine"
-            minSdk = 26 // geckoview requires minSdk 26
-        }
-        create("geckoExcluded") {
-            dimension = "webengine"
         }
     }
 
@@ -97,7 +89,6 @@ android {
 dependencies {
     implementation("com.google.zxing:core:3.5.3")
     implementation(project(":app:common"))
-    "geckoIncludedImplementation"(project(":app:gecko"))
 
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
 

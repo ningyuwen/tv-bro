@@ -29,16 +29,8 @@ jobs:
       - name: Decode keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
 
-      - name: Build GeckoIncluded
-        run: ./gradlew assembleGenericGeckoIncludedRelease -PenableAbiSplits
-        env:
-          KEYSTORE_PATH: ${{ github.workspace }}/keystore.jks
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-
-      - name: Build GeckoExcluded
-        run: ./gradlew assembleGenericGeckoExcludedRelease
+      - name: Build WebView Release
+        run: ./gradlew :app:assembleGenericRelease -PenableAbiSplits
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/keystore.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -47,7 +39,7 @@ jobs:
 
       - name: Rename artifacts
         run: |
-          for dir in genericGeckoIncluded genericGeckoExcluded; do
+          for dir in generic; do
             for f in app/build/outputs/apk/${dir}/release/app-*.apk; do
               new="${f/app-/tvbro-${{ inputs.version }}-}"
               mv "$f" "${new/-release.apk/.apk}"
@@ -62,5 +54,4 @@ jobs:
           body_path: RELEASE_NOTES.md
           prerelease: ${{ inputs.prerelease == 'pre-release' }}
           files: |
-            app/build/outputs/apk/genericGeckoIncluded/release/*.apk
-            app/build/outputs/apk/genericGeckoExcluded/release/*.apk
+            app/build/outputs/apk/generic/release/*.apk

@@ -78,7 +78,7 @@
   <string name="main">Principale</string>
   <string name="version_and_updates">Versione &amp; Info</string>
   <string name="version_s">Versione: %s</string>
-  <string name="build_flavor_s">Variante build: %1$s · %2$s</string>
+  <string name="build_flavor_s">Variante build: %1$s</string>
   <string name="support_the_author">☕ Sostieni l\'autore</string>
   <string name="view_license">📃 Licenza</string>
   <string name="privacy_policy">🔒 Informativa sulla privacy</string>
@@ -167,7 +167,6 @@
     <item>Più visitato</item>
   </string-array>
 
-  <string name="web_browser_engine_temporary_setting">Motore del browser Web</string>
   <string name="need_restart_message">Riavvia l&amp;#39;app per applicare le modifiche</string>
   <string name="restart">Ricomincia</string>
   <string name="yes">SÌ</string>
@@ -176,8 +175,6 @@
   <string name="site_asks_to_open_unknown_url_message">Vuoi aprire questo URL in un&amp;#39;app esterna?</string>
   <string name="err_no_app_to_handle_url">Impossibile trovare un&amp;#39;applicazione adatta per gestire questo URL</string>
   <string name="home_page_links">Link in home page</string>
-  <string name="settings_engine_change_gecko_msg">GeckoView si carica un po\' più lentamente di WebView. Vuoi continuare\?</string>
-  <string name="settings_engine_change_webview_msg">WebView si aggiorna separatamente dall\'app principale. Vuoi continuare\?</string>
   <string name="http_auth_title">Autenticazione richiesta</string>
   <string name="play_pause">Riproduci/Pausa</string>
   <string name="media_stop">Arresta riproduzione multimediale</string>
