@@ -208,6 +208,7 @@ class PhoneRemoteSessionTest {
             .setPositiveButton("Confirm") { _, _ -> confirmed++ }.show()
         try {
             shadowOf(Looper.getMainLooper()).idle()
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).apply { isFocusableInTouchMode = true; requestFocus() }
             assertEquals("navigation", request(connection, "status").getJSONObject("ui").getString("mode"))
             assertTrue(request(connection, "click").getBoolean("ok"))
             shadowOf(Looper.getMainLooper()).idle()
