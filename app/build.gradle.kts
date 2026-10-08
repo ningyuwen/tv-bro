@@ -8,8 +8,8 @@ android {
 
     defaultConfig {
         applicationId = "cn.ningyuwen.limebrowser"
-        versionCode = 74
-        versionName = "0.1.6"
+        versionCode = 75
+        versionName = "0.1.7"
 
         javaCompileOptions {
             annotationProcessorOptions {

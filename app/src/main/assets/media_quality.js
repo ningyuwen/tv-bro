@@ -13,6 +13,46 @@
         var h = height(level.height), b = bitrate(level.bitrate);
         return h ? h + 'P' : b ? Math.round(b / 1000) + ' kbps' : '';
     }
+    function youtubeAdapter() {
+        // These are methods on YouTube's own DOM player, not the deprecated iframe API.
+        var host = view.location && view.location.hostname;
+        if (!host || !/(^|\.)youtube(?:-nocookie)?\.com$/i.test(host) ||
+            media.tagName !== 'VIDEO' || typeof media.closest !== 'function') return;
+        var player = media.closest('.html5-video-player');
+        if (!player || !player.contains(media) ||
+            player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting') ||
+            typeof player.getAvailableQualityLevels !== 'function' ||
+            typeof player.setPlaybackQualityRange !== 'function' || typeof player.getVideoData !== 'function') return;
+        var data = player.getVideoData(), videoId = data && data.video_id;
+        if (typeof videoId !== 'string' || !/^[\w-]{1,128}$/.test(videoId)) return;
+        var available = player.getAvailableQualityLevels();
+        if (!Array.isArray(available) || available.length < 1 || available.length > 32) return;
+        var heights = { tiny: 144, small: 240, medium: 360, large: 480,
+            hd720: 720, hd1080: 1080, hd1440: 1440, hd2160: 2160, hd2880: 2880, highres: 4320 };
+        var levels = [];
+        available.forEach(function(key) {
+            if (typeof key === 'string' && Object.prototype.hasOwnProperty.call(heights, key) &&
+                !levels.some(function(level) { return level.key === key; })) {
+                levels.push({ key: key, height: heights[key] });
+            }
+        });
+        if (!levels.length) return;
+        // Keep catalog IDs stable if the player merely changes its array ordering.
+        levels.sort(function(a, b) { return b.height - a.height; });
+        return { ref: player, kind: 'youtube', auto: true, levels: levels,
+            signature: JSON.stringify([videoId, levels]),
+            // getPlaybackQuality() reports the decoded tier, not the user's preference.
+            // Leave the initial preference unknown; report only a choice made here.
+            selected: function(record) {
+                return Number.isInteger(record.requestedIndex) ? record.requestedIndex : -2;
+            },
+            select: function(index, record) {
+                var key = index === -1 ? 'auto' : levels[index].key;
+                player.setPlaybackQualityRange(key, key);
+                record.requestedIndex = index;
+            }
+        };
+    }
     function hlsAdapter() {
         var players = [media.hls, media._hls, view.hls];
         for (var p = 0; p < players.length; p++) {
@@ -136,7 +176,8 @@
     }
     var adapter;
     // A broken optional player API must not break progress control or other adapters.
-    try { adapter = hlsAdapter(); } catch (_) {}
+    try { adapter = youtubeAdapter(); } catch (_) {}
+    if (!adapter) try { adapter = hlsAdapter(); } catch (_) {}
     if (!adapter) try { adapter = videojsAdapter(); } catch (_) {}
     if (!adapter) try { adapter = sourcesAdapter(); } catch (_) {}
     var currentHeight = height(media.videoHeight);
@@ -175,7 +216,7 @@
         adapter.select(chosen.index, record);
         record.requestedId = chosen.id;
     }
-    var selected = adapter.selected();
+    var selected = adapter.selected(record);
     var selectedOption = record.options.find(function(option) { return option.index === selected; });
     return { supported: true,
         options: record.options.map(function(option) { return { id: option.id, label: option.label }; }),

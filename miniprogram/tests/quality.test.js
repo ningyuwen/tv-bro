@@ -43,6 +43,80 @@ function hls(b) {
 function source(height, type = 'video/mp4', url = `https://private.example/${height}.mp4`) {
   return { src: url, getAttribute: name => ({ 'data-res': String(height), type })[name] || null }
 }
+function youtube(b, host = 'www.youtube.com') {
+  b.view.location = { hostname: host }
+  const player = { levels: ['hd1080', 'hd720', 'medium', 'auto'], videoId: 'private-video', calls: [],
+    ads: false, classList: { contains: () => player.ads }, contains: media => media === b.media,
+    getVideoData: () => ({ video_id: player.videoId }), getAvailableQualityLevels: () => player.levels,
+    setPlaybackQualityRange: (...args) => player.calls.push(args) }
+  b.media.closest = selector => selector === '.html5-video-player' ? player : null
+  return player
+}
+
+test('YouTube uses only the active DOM player range API and keeps requested and actual quality separate', () => {
+  const b = browser({ paused: true }), player = youtube(b), before = b.control()
+  assert.deepEqual(before.quality.options.map(o => o.label), ['自动', '1080P', '720P', '360P'])
+  assert.equal(before.quality.selectedId, '')
+  const result = b.select('720P')
+  assert.deepEqual(player.calls, [['hd720', 'hd720']])
+  assert.equal(result.quality.selectedId, result.quality.options[2].id)
+  assert.equal(result.quality.currentHeight, 360)
+  b.media.videoHeight = 720
+  assert.equal(b.control().quality.currentHeight, 720)
+  assert.equal(b.control().position, 25)
+  assert.equal(b.media.paused, true)
+  assert.equal(b.media.loads, undefined)
+  assert.equal(b.media.plays, undefined)
+  assert.equal(JSON.stringify(result).includes('private'), false)
+  b.select('自动')
+  assert.deepEqual(player.calls[1], ['auto', 'auto'])
+  assert.equal(b.control().quality.selectedId, before.quality.options[0].id)
+})
+test('YouTube rejects menus from a previous video even if the media element and blob URL are reused', () => {
+  const b = browser(), player = youtube(b), before = b.control()
+  player.videoId = 'different-video'
+  assert.equal(b.control('setQuality', before.mediaId, before.quality.options[1].id).error, 'quality_changed')
+  assert.equal(player.calls.length, 0)
+  assert.equal(b.control().quality.selectedId, '')
+})
+test('YouTube recognizes only trusted hosts and the player containing this video, and excludes ads', () => {
+  for (const host of ['www.youtube.com', 'm.youtube.com', 'www.youtube-nocookie.com']) {
+    const b = browser(); youtube(b, host)
+    assert.equal(b.control().quality.supported, true)
+  }
+  for (const change of [
+    (b, p) => { b.view.location.hostname = 'youtube.com.evil.example' },
+    (b, p) => { b.view.location.hostname = 'notyoutube.com' },
+    (b, p) => { p.contains = () => false },
+    (b, p) => { p.ads = true },
+    (b, p) => { p.setPlaybackQualityRange = undefined },
+    (b, p) => { p.getVideoData = () => ({}) }
+  ]) {
+    const b = browser(), player = youtube(b); change(b, player)
+    assert.equal(b.control().quality.supported, false)
+    assert.equal(player.calls.length, 0)
+  }
+})
+test('YouTube filters unknown tiers, deduplicates choices, and invalidates a changed catalog', () => {
+  const b = browser(), player = youtube(b)
+  player.levels = ['medium', 'unknown', 'medium']
+  const before = b.control()
+  assert.deepEqual(before.quality.options.map(o => o.label), ['自动', '360P'])
+  player.levels.push('hd720')
+  assert.equal(b.control('setQuality', before.mediaId, before.quality.options[1].id).error, 'quality_changed')
+  const next = b.control()
+  player.levels.reverse()
+  assert.deepEqual(b.control().quality.options, next.quality.options)
+})
+test('broken YouTube APIs preserve progress and report a failed selection instead of success', () => {
+  const b = browser(), player = youtube(b), before = b.control()
+  player.setPlaybackQualityRange = () => { throw Error('broken') }
+  assert.equal(b.control('setQuality', before.mediaId, before.quality.options[1].id).error, 'quality_failed')
+  assert.equal(b.control().quality.selectedId, '')
+  player.getAvailableQualityLevels = () => { throw Error('not ready') }
+  assert.equal(b.control().quality.supported, false)
+  assert.equal(b.control().canSeek, true)
+})
 
 test('HLS quality switches and automatic mode leave time intact and do not expose source URLs', () => {
   const b = browser(), player = hls(b), before = b.control()
