@@ -4,7 +4,12 @@
   <view wx:if="{{!connected}}" class="pair card">
     <text class="section-title">连接你的电视</text>
     <text class="hint">电视打开青柠浏览器，小程序会自动寻找盒子。首次连接只需在电视上选择「允许并记住」。</text>
-    <view wx:for="{{devices}}" wx:key="deviceId" class="device"><button data-index="{{index}}" bindtap="choose" disabled="{{busy}}">{{item.name}} · {{item.host}}</button></view>
+    <view wx:for="{{devices}}" wx:key="deviceId" class="device">
+      <button class="device-button" data-index="{{index}}" bindtap="choose" disabled="{{busy}}">
+        <text class="device-name">{{item.name}}</text>
+        <text class="device-host">{{item.host}}</text>
+      </button>
+    </view>
     <button class="primary" bindtap="find" loading="{{busy}}" disabled="{{busy}}">{{busy ? '正在连接…' : '重新寻找电视'}}</button>
     <button class="quiet" bindtap="scan" disabled="{{busy}}">扫码配对（备用）</button>
     <button class="quiet" bindtap="toggleManual">{{manual ? '收起' : '手动输入地址'}}</button>
