@@ -37,9 +37,10 @@
         activeColor="#52962c" backgroundColor="#e2e8df" block-size="24"
         bindtouchstart="seekStart" bindtouchend="seekEnd" bindchanging="seekChanging" bindchange="seekChange" bindtouchcancel="seekCancel" />
       <view class="row media-buttons">
-        <button data-seconds="-10" bindtap="skipMedia" disabled="{{!media.canSeek || mediaBusy || media.quality.switching}}">后退 10 秒</button>
-        <button bindtap="toggleMedia" disabled="{{!media.available || mediaBusy || media.quality.switching}}">{{media.paused ? '播放' : '暂停'}}</button>
-        <button data-seconds="10" bindtap="skipMedia" disabled="{{!media.canSeek || mediaBusy || media.quality.switching}}">快进 10 秒</button>
+        <!-- mediaCommand guards pending requests without flashing all three buttons. -->
+        <button data-seconds="-10" bindtap="skipMedia" disabled="{{!media.canSeek || media.quality.switching}}">后退 10 秒</button>
+        <button bindtap="toggleMedia" disabled="{{!media.available || media.quality.switching}}">{{media.paused ? '播放' : '暂停'}}</button>
+        <button data-seconds="10" bindtap="skipMedia" disabled="{{!media.canSeek || media.quality.switching}}">快进 10 秒</button>
       </view>
       <text class="footnote">{{media.hint}}</text>
       <view wx:if="{{media.available}}" class="quality-panel">
