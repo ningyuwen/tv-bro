@@ -68,7 +68,6 @@
   <string name="storage_not_mounted">Bộ nhớ không được gắn kết</string>
   <string name="can_not_create_downloads">Không thể tạo thư mục tải xuống</string>
   <string name="voice_search_not_found">Không tìm thấy tìm kiếm bằng giọng nói</string>
-  <string name="new_version_dialog_title">Có phiên bản mới</string>
   <string name="later">Để sau</string>
   <string name="downloads">Tải xuống</string>
   <string name="downloads_notifications_description">Thông báo về trạng thái tải xuống</string>
@@ -79,10 +78,7 @@
   <string name="support_the_author">☕ Hỗ trợ tác giả</string>
   <string name="view_license">📃 Giấy phép</string>
   <string name="privacy_policy">🔒 Chính sách quyền riêng tư</string>
-  <string name="update_channel">Cập nhật kênh:</string>
-  <string name="auto_check_for_updates">Tự động kiểm tra các bản cập nhật</string>
   <string name="update">Cập nhật</string>
-  <string name="new_version_available_s">Có phiên bản mới: %s</string>
   <string name="web_browser_optimized_for_tvs">Trình duyệt web được tối ưu hóa cho TV</string>
   <string name="warning">Cảnh báo</string>
   <string name="unprotected_connection">Kết nối không được bảo vệ</string>

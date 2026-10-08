@@ -12,7 +12,6 @@ import com.phlox.tvwebbrowser.model.HistoryItem
 import com.phlox.tvwebbrowser.model.HomePageLink
 import com.phlox.tvwebbrowser.model.WebTabState
 import com.phlox.tvwebbrowser.singleton.AppDatabase
-import com.phlox.tvwebbrowser.utils.UpdateChecker
 import com.phlox.tvwebbrowser.utils.activemodel.ActiveModel
 import com.phlox.tvwebbrowser.utils.deleteDirectory
 import com.phlox.tvwebbrowser.utils.observable.ObservableList
@@ -48,20 +47,17 @@ class MainActivityViewModel: ActiveModel() {
     fun loadState() = modelScope.launch(Dispatchers.Main) {
         Log.d(TAG, "loadState")
         if (loaded) return@launch
-        checkVersionCodeAndRunMigrations()
+        recordAppVersion()
         initHistory()
         loadHomePageLinks()
         loaded = true
     }
 
-    private suspend fun checkVersionCodeAndRunMigrations() {
-        Log.d(TAG, "checkVersionCodeAndRunMigrations")
+    private fun recordAppVersion() {
+        Log.d(TAG, "recordAppVersion")
         if (config.appVersionCodeMark != BuildConfig.VERSION_CODE) {
             Log.i(TAG, "App version code changed from ${config.appVersionCodeMark} to ${BuildConfig.VERSION_CODE}")
             config.appVersionCodeMark = BuildConfig.VERSION_CODE
-            withContext(Dispatchers.IO) {
-                UpdateChecker.clearTempFilesIfAny(TVBro.instance)
-            }
         }
     }
 

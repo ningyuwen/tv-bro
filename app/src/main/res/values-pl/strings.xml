@@ -71,7 +71,6 @@
   <string name="storage_not_mounted">Nie zamontowano nośnika</string>
   <string name="can_not_create_downloads">Nie mogę stworzyć folderu Pobrane</string>
   <string name="voice_search_not_found">Nie znaleziono wyszukiwania głosowego</string>
-  <string name="new_version_dialog_title">Dostępna nowa wersja!</string>
   <string name="later">Później</string>
   <string name="downloads">Pobrane</string>
   <string name="downloads_notifications_description">Powiadomienia o statusie pobierania</string>
@@ -82,10 +81,7 @@
   <string name="support_the_author">☕ Wesprzyj autora</string>
   <string name="view_license">📃 Licencja</string>
   <string name="privacy_policy">🔒 Polityka prywatności</string>
-  <string name="update_channel">Kanał aktualizacji:</string>
-  <string name="auto_check_for_updates">Automatycznie sprawdzaj aktualizacje</string>
   <string name="update">Aktualizacja</string>
-  <string name="new_version_available_s">Dostępna nowa wersja: %s</string>
   <string name="web_browser_optimized_for_tvs">Przeglądarka internetowa zaoptymalizowana dla telewizorów</string>
   <string name="warning">Ostrzeżenie</string>
   <string name="unprotected_connection">Połączenie nie jest chronione</string>

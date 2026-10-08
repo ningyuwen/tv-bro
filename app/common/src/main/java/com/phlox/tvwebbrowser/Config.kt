@@ -3,7 +3,6 @@ package com.phlox.tvwebbrowser
 import android.annotation.SuppressLint
 import android.content.SharedPreferences
 import android.os.Build
-import com.phlox.tvwebbrowser.utils.Utils
 import com.phlox.tvwebbrowser.utils.observable.ObservableValue
 
 class Config(val prefs: SharedPreferences) {
@@ -13,9 +12,6 @@ class Config(val prefs: SharedPreferences) {
         const val HOME_PAGE_KEY = "home_page"
         const val USER_AGENT_PREF_KEY = "user_agent"
         const val THEME_KEY = "theme"
-        const val LAST_UPDATE_USER_NOTIFICATION_TIME_KEY = "last_update_notif"
-        const val AUTO_CHECK_UPDATES_KEY = "auto_check_updates"
-        const val UPDATE_CHANNEL_KEY = "update_channel"
         const val TV_BRO_UA_PREFIX = "TV Bro/1.0 "
         const val HOME_URL_ALIAS = "about:home"
         const val KEEP_SCREEN_ON_KEY = "keep_screen_on"
@@ -203,18 +199,6 @@ class Config(val prefs: SharedPreferences) {
         get() = prefs.getLong(ADBLOCK_LAST_UPDATE_LIST_KEY, 0)
         set(value) {
             prefs.edit().putLong(ADBLOCK_LAST_UPDATE_LIST_KEY, value).apply()
-        }
-
-    var autoCheckUpdates: Boolean
-        get() = prefs.getBoolean(AUTO_CHECK_UPDATES_KEY, Utils.isInstalledByAPK(AppContext.get()))
-        set(value) {
-            prefs.edit().putBoolean(AUTO_CHECK_UPDATES_KEY, value).apply()
-        }
-
-    var updateChannel: String
-        get() = prefs.getString(UPDATE_CHANNEL_KEY, "release")!!
-        set(value) {
-            prefs.edit().putString(UPDATE_CHANNEL_KEY, value).apply()
         }
 
     var appVersionCodeMark: Int

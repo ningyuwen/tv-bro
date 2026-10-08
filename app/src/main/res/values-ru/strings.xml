@@ -69,13 +69,10 @@
   <string name="msg_delete_history_all">Удалить всю историю?</string>
   <string name="downloads">Загрузки</string>
   <string name="later">Позже</string>
-  <string name="new_version_dialog_title">Доступна новая версия</string>
   <string name="downloads_notifications_description">Уведомления о загрузках</string>
-  <string name="auto_check_for_updates">Проверять обновления</string>
   <string name="main">Основные</string>
   <string name="unprotected_connection">Незащищенное соединение</string>
   <string name="update">Обновить</string>
-  <string name="update_channel">Канал обновлений</string>
   <string name="version_and_updates">Версия</string>
   <string name="version_s">Версия: %s</string>
   <string name="build_flavor_s">Вариант сборки: %1$s</string>
@@ -84,7 +81,6 @@
   <string name="privacy_policy">🔒 Политика конфиденциальности</string>
   <string name="warning">Предупреждение</string>
   <string name="web_browser_optimized_for_tvs">Веб-браузер, оптимизированный для телевизоров</string>
-  <string name="new_version_available_s">Доступна новая версия: %s</string>
   <string name="err_webview_can_not_link">Не могу найти WebView компонент. Попробуйте сперва установить Android System WebView</string>
   <string name="new_tab_title">[НОВАЯ ВКЛ.]</string>
   <string name="open_a_new_tab_here">Открыть новую вкладку тут</string>

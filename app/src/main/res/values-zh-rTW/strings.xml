@@ -71,7 +71,6 @@
     <string name="storage_not_mounted">儲存空間未掛接</string>
     <string name="can_not_create_downloads">無法建立下載目錄</string>
     <string name="voice_search_not_found">找不到語音搜尋</string>
-    <string name="new_version_dialog_title">有可用的新版本</string>
     <string name="later">稍後</string>
     <string name="downloads">下載</string>
     <string name="downloads_notifications_description">下載狀態通知</string>
@@ -82,10 +81,7 @@
     <string name="support_the_author">☕ 支持作者</string>
     <string name="view_license">📃 授權條款</string>
     <string name="privacy_policy">🔒 隱私權政策</string>
-    <string name="update_channel">更新頻道：</string>
-    <string name="auto_check_for_updates">自動檢查更新</string>
     <string name="update">更新</string>
-    <string name="new_version_available_s">有可用的新版本：%s</string>
     <string name="web_browser_optimized_for_tvs">針對電視強化的網頁瀏覽器</string>
     <string name="warning">警告</string>
     <string name="unprotected_connection">未保護的連線</string>

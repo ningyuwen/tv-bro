@@ -91,7 +91,6 @@ import com.phlox.tvwebbrowser.utils.Utils
 import com.phlox.tvwebbrowser.utils.VoiceSearchHelper
 import com.phlox.tvwebbrowser.utils.activemodel.ActiveModelsRepository
 import com.phlox.tvwebbrowser.utils.childs
-import com.phlox.tvwebbrowser.utils.sameDay
 import com.phlox.tvwebbrowser.webengine.WebEngine
 import com.phlox.tvwebbrowser.webengine.WebEngineFactory
 import com.phlox.tvwebbrowser.webengine.WebEngineWindowProviderCallback
@@ -108,7 +107,6 @@ import java.io.InputStream
 import java.io.UnsupportedEncodingException
 import java.net.URL
 import java.net.URLEncoder
-import java.util.Calendar
 import java.util.Locale
 import kotlin.system.exitProcess
 
@@ -121,7 +119,6 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
         const val MY_PERMISSIONS_REQUEST_EXTERNAL_STORAGE_ACCESS = 10004
         const val PICK_FILE_REQUEST_CODE = 10005
         private const val REQUEST_CODE_HISTORY_ACTIVITY = 10006
-        const val REQUEST_CODE_UNKNOWN_APP_SOURCES = 10007
         const val KEY_PROCESS_ID_TO_KILL = "proc_id_to_kill"
         private const val MY_PERMISSIONS_REQUEST_VOICE_SEARCH_PERMISSIONS = 10008
         private const val COMMON_REQUESTS_START_CODE = 10100
@@ -132,7 +129,6 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
     private lateinit var tabsModel: TabsModel
     private lateinit var settingsModel: SettingsModel
     private lateinit var adblockModel: AdblockModel
-    private lateinit var autoUpdateModel: AutoUpdateModel
     private lateinit var uiHandler: Handler
     private var isFullscreen: Boolean = false
     private lateinit var prefs: SharedPreferences
@@ -331,7 +327,6 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
         settingsModel = ActiveModelsRepository.get(SettingsModel::class, this)
         adblockModel = ActiveModelsRepository.get(AdblockModel::class, this)
         tabsModel = ActiveModelsRepository.get(TabsModel::class, this)
-        autoUpdateModel = ActiveModelsRepository.get(AutoUpdateModel::class, this)
         uiHandler = Handler()
         prefs = getSharedPreferences(TVBro.MAIN_PREFS_NAME, Context.MODE_PRIVATE)
         vb = ActivityMainBinding.inflate(layoutInflater)
@@ -623,15 +618,6 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
         if (currentTab == null || currentTab.url == settingsModel.homePage) {
             showMenuOverlay()
         }
-        if (autoUpdateModel.needAutoCheckUpdates &&
-            autoUpdateModel.updateChecker.versionCheckResult == null &&
-                !autoUpdateModel.lastUpdateNotificationTime.sameDay(Calendar.getInstance())) {
-            autoUpdateModel.checkUpdate(false){
-                if (autoUpdateModel.updateChecker.hasUpdate()) {
-                    autoUpdateModel.showUpdateDialogIfNeeded(this@MainActivity)
-                }
-            }
-        }
     }
 
     private fun handleIntent(intent: Intent) {
@@ -826,10 +812,6 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
                 }
                 hideMenuOverlay()
             }
-            REQUEST_CODE_UNKNOWN_APP_SOURCES -> if (autoUpdateModel.needToShowUpdateDlgAgain) {
-                autoUpdateModel.showUpdateDialogIfNeeded(this)
-            }
-
             else -> super.onActivityResult(requestCode, resultCode, data)
         }
     }

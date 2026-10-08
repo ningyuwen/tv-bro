@@ -69,7 +69,6 @@
   <string name="storage_not_mounted">Speicher nicht verfügbar</string>
   <string name="can_not_create_downloads">Kann Downloadordner nicht erstellen</string>
   <string name="voice_search_not_found">Sprachsuche nicht gefunden</string>
-  <string name="new_version_dialog_title">Neue Version verfügbar</string>
   <string name="later">Später</string>
   <string name="downloads">Downloads</string>
   <string name="downloads_notifications_description">Benachrichtigungen über Download-Status</string>
@@ -80,10 +79,7 @@
   <string name="support_the_author">☕ Autor unterstützen</string>
   <string name="view_license">📃 Lizenz</string>
   <string name="privacy_policy">🔒 Datenschutz</string>
-  <string name="update_channel">Updatekanal:</string>
-  <string name="auto_check_for_updates">Automatisch nach Updates suchen</string>
   <string name="update">Update</string>
-  <string name="new_version_available_s">Neue Version verfügbar: %s</string>
   <string name="web_browser_optimized_for_tvs">Webbrowser optimiert für TVs</string>
   <string name="warning">Warnung</string>
   <string name="unprotected_connection">Ungeschützte Verbindung</string>

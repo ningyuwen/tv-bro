@@ -68,7 +68,6 @@
   <string name="storage_not_mounted">存储未挂载</string>
   <string name="can_not_create_downloads">无法创建下载目录</string>
   <string name="voice_search_not_found">找不到语音搜索</string>
-  <string name="new_version_dialog_title">新版本可用</string>
   <string name="later">稍后提醒</string>
   <string name="downloads">下载</string>
   <string name="downloads_notifications_description">关于下载状态的通知</string>
@@ -79,10 +78,7 @@
   <string name="support_the_author">☕ 支持作者</string>
   <string name="view_license">📃 许可协议</string>
   <string name="privacy_policy">🔒 隐私政策</string>
-  <string name="update_channel">更新频道：</string>
-  <string name="auto_check_for_updates">自动检查更新</string>
   <string name="update">更新资料</string>
-  <string name="new_version_available_s">新版本可用: %s</string>
   <string name="web_browser_optimized_for_tvs">针对电视进行了优化的网络浏览器</string>
   <string name="warning">警告</string>
   <string name="unprotected_connection">未保护的连接</string>

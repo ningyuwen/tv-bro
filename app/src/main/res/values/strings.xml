@@ -72,7 +72,6 @@
     <string name="storage_not_mounted">Storage not mounted</string>
     <string name="can_not_create_downloads">Can not create downloads dir</string>
     <string name="voice_search_not_found">Voice search not found</string>
-    <string name="new_version_dialog_title">New version available</string>
     <string name="later">Later</string>
     <string name="downloads">Downloads</string>
     <string name="downloads_notifications_description">Notifications regarding downloads statuses</string>
@@ -83,10 +82,7 @@
     <string name="support_the_author">☕ Support the author</string>
     <string name="view_license">📃 License</string>
     <string name="privacy_policy">🔒 Privacy policy</string>
-    <string name="update_channel">Update channel:</string>
-    <string name="auto_check_for_updates">Auto check for updates</string>
     <string name="update">Update</string>
-    <string name="new_version_available_s">New version available: %s</string>
     <string name="web_browser_optimized_for_tvs">Web browser optimized for TVs</string>
     <string name="warning">Warning</string>
     <string name="unprotected_connection">Unprotected connection</string>

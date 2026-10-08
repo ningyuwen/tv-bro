@@ -60,17 +60,13 @@ android {
     productFlavors {
         create("generic") {
             dimension = "appstore"
-            buildConfigField("Boolean", "BUILT_IN_AUTO_UPDATE", "false")
         }
         create("google") {
             dimension = "appstore"
-            //now auto-update violates Google Play policies
-            buildConfigField("Boolean", "BUILT_IN_AUTO_UPDATE", "false")
         }
         create("foss") {
             dimension = "appstore"
             applicationIdSuffix = ".foss"
-            buildConfigField("Boolean", "BUILT_IN_AUTO_UPDATE", "false")
         }
     }
 

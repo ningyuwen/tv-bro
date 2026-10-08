@@ -66,15 +66,12 @@
   <string name="can_not_create_downloads">Не можу створити директорію для завантажених файлів</string>
   <string name="voice_search_not_found">Додаток голосового пошуку не знайдено</string>
   <string name="msg_delete_history_all">Видалити усю історію?</string>
-  <string name="new_version_dialog_title">Доступна нова версія</string>
   <string name="later">Пізніше</string>
   <string name="downloads_notifications_description">Сповіщення про завантаження</string>
   <string name="downloads">Завантаження</string>
-  <string name="auto_check_for_updates">Перевіряти поновлення</string>
   <string name="main">Головні</string>
   <string name="unprotected_connection">Незахищене з\'єднання</string>
   <string name="update">Оновити</string>
-  <string name="update_channel">Канал оновлень</string>
   <string name="version_and_updates">Версія</string>
   <string name="version_s">Версія: %s</string>
   <string name="build_flavor_s">Варіант збірки: %1$s</string>
@@ -83,7 +80,6 @@
   <string name="privacy_policy">🔒 Політика конфіденційності</string>
   <string name="warning">Увага</string>
   <string name="web_browser_optimized_for_tvs">Веб-браузер, оптимізований для телевізорів</string>
-  <string name="new_version_available_s">Доступна нова версія: %s</string>
   <string name="err_webview_can_not_link">Не можу знайти WebView компонент. Спробуйте спочатку встановити Android System WebView</string>
   <string name="new_tab_title">[НОВА ВКЛ.]</string>
   <string name="open_a_new_tab_here">Відкрити нову вкладку тут</string>

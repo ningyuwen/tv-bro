@@ -72,7 +72,6 @@
   <string name="storage_not_mounted">"حافظه متصل نشده است"</string>
   <string name="can_not_create_downloads">"نمی توان بارگیری ها را ایجاد کرد"</string>
   <string name="voice_search_not_found">"جستجوی صوتی یافت نشد"</string>
-  <string name="new_version_dialog_title">"نسخه جدید در دسترس است"</string>
   <string name="later">"بعد"</string>
   <string name="downloads">"بارگیری ها"</string>
   <string name="downloads_notifications_description">"اعلان های مربوط به وضعیت بارگیری ها"</string>
@@ -83,10 +82,7 @@
   <string name="support_the_author">☕ حمایت از نویسنده</string>
   <string name="view_license">📃 مجوز</string>
   <string name="privacy_policy">🔒 سیاست حریم خصوصی</string>
-  <string name="update_channel">"کانال ترجمه:"</string>
-  <string name="auto_check_for_updates">"بررسی خودکار برای به روزرسانی ها"</string>
   <string name="update">"به روز رسانی"</string>
-  <string name="new_version_available_s">"نسخه جدید موجود است: %s"</string>
   <string name="warning">"هشدار"</string>
   <string name="unprotected_connection">"اتصال محافظت نشده"</string>
   <string name="err_webview_can_not_link">"نمی توان به وب نما متصل شد.ابتدا وب نما سیستم Android را نصب کنید."</string>
