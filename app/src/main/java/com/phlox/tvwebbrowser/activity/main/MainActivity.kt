@@ -54,11 +54,14 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
+import com.phlox.tvwebbrowser.remote.RemoteUiWindows
 import com.phlox.tvwebbrowser.AppContext
 import com.phlox.tvwebbrowser.Config
 import com.phlox.tvwebbrowser.R
 import com.phlox.tvwebbrowser.TVBro
 import com.phlox.tvwebbrowser.remote.PhoneRemoteController
+import com.phlox.tvwebbrowser.remote.RemoteUiNavigator
+import com.phlox.tvwebbrowser.remote.RemoteNavigationGesture
 import com.phlox.tvwebbrowser.remote.RemoteCommand
 import com.phlox.tvwebbrowser.remote.RemoteVolumeController
 import org.json.JSONObject
@@ -142,6 +145,47 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
     private var linkActionsMenu: PopupMenu? = null
     private var phoneRemote: PhoneRemoteController? = null
 
+    private var menuOverlayOpen = false
+    private val remoteNavigationGesture = RemoteNavigationGesture()
+
+    private fun remoteNavigationRoot(): View? {
+        val root = RemoteUiWindows.activeRoot(phoneRemote?.foregroundActivity ?: this)
+        return root.takeIf { it !== window.decorView || menuOverlayOpen || vb.llBottomPanel.isVisible || vb.vCursorMenu.isVisible }
+    }
+
+    private fun remoteUiState(): JSONObject {
+        val root = remoteNavigationRoot()
+        return JSONObject().put("mode", if (root == null) "pointer" else "navigation")
+            .put("focus", if (root == null) "" else RemoteUiNavigator.label(root.findFocus()))
+    }
+
+    private fun remoteKey(name: String) {
+        val key = when (name) {
+            "up" -> KeyEvent.KEYCODE_DPAD_UP
+            "down" -> KeyEvent.KEYCODE_DPAD_DOWN
+            "left" -> KeyEvent.KEYCODE_DPAD_LEFT
+            "right" -> KeyEvent.KEYCODE_DPAD_RIGHT
+            else -> KeyEvent.KEYCODE_DPAD_CENTER
+        }
+        val root = remoteNavigationRoot()
+        if (root != null) RemoteUiNavigator.key(root, key)
+        else {
+            dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, key))
+            dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, key))
+        }
+    }
+
+    private fun remoteBack() {
+        remoteNavigationGesture.reset()
+        val root = remoteNavigationRoot()
+        if (root != null && hideSoftwareKeyboardIfVisible(root)) return
+        if (root != null && root !== window.decorView) {
+            root.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK))
+            root.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK))
+        } else if (root != null) handleBackNavigation()
+        else navigateBack()
+    }
+
     fun showPhoneRemote() {
         if (phoneRemote == null) {
             phoneRemote = PhoneRemoteController(this, ::executePhoneCommand)
@@ -151,6 +195,9 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
 
     private fun hideOverlayForPhone() {
         // Pointer commands must not land on the thumbnail during its exit animation.
+        menuOverlayOpen = false
+        remoteNavigationGesture.reset()
+        vb.tvMenuFocusHint.visibility = View.INVISIBLE
         vb.rlActionBar.animate().cancel()
         vb.llBottomPanel.animate().cancel()
         vb.ivMiniatures.animate().cancel()
@@ -162,6 +209,10 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
     }
 
     private fun executePhoneCommand(command: RemoteCommand, complete: (Result<JSONObject>) -> Unit) {
+        val foreground = phoneRemote?.foregroundActivity ?: this
+        require(foreground === this || command is RemoteCommand.Move || command is RemoteCommand.Scroll ||
+            command is RemoteCommand.Text || command is RemoteCommand.Volume ||
+            (command is RemoteCommand.Action && command.name in setOf("status", "click", "back", "up", "down", "left", "right", "ok"))) { "background" }
         if (command is RemoteCommand.Action && command.name == "toggleFullscreen") {
             val engine = tabsModel.currentTab.value?.webEngine
                 ?: throw IllegalArgumentException("not_ready")
@@ -181,7 +232,9 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
                     JSONObject().put("media", media)
                 })
             }
-        } else complete(runCatching { executePhoneCommandNow(command) })
+        } else complete(runCatching {
+            executePhoneCommandNow(command).put("ui", remoteUiState())
+        })
     }
 
     private fun executePhoneCommandNow(command: RemoteCommand): JSONObject {
@@ -190,22 +243,34 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
             is RemoteCommand.Volume -> return RemoteVolumeController(this).execute(command)
             is RemoteCommand.Media -> throw IllegalArgumentException("unknown_command")
             is RemoteCommand.Move -> {
-                require(engine != null) { "not_ready" }
-                hideOverlayForPhone()
-                engine.setVirtualCursorMode(true)
-                requireNotNull(engine.getCursorDrawerDelegate()) { "not_ready" }.remoteMove(command.dx, command.dy)
+                val root = remoteNavigationRoot()
+                if (root != null) {
+                    remoteNavigationGesture.move(command.dx, command.dy, root, android.os.SystemClock.uptimeMillis())?.let { remoteKey(it) }
+                } else {
+                    require(engine != null) { "not_ready" }
+                    remoteNavigationGesture.reset()
+                    hideOverlayForPhone()
+                    engine.setVirtualCursorMode(true)
+                    requireNotNull(engine.getCursorDrawerDelegate()) { "not_ready" }.remoteMove(command.dx, command.dy)
+                }
             }
             is RemoteCommand.Scroll -> {
-                require(engine != null) { "not_ready" }
-                hideOverlayForPhone()
-                requireNotNull(engine.getCursorDrawerDelegate()) { "not_ready" }.remoteScroll(command.dx, command.dy)
+                val root = remoteNavigationRoot()
+                if (root != null) {
+                    // Native lists and settings scroll through their focused controls.
+                    remoteNavigationGesture.move(-command.dx, -command.dy, root, android.os.SystemClock.uptimeMillis())?.let { remoteKey(it) }
+                } else {
+                    require(engine != null) { "not_ready" }
+                    hideOverlayForPhone()
+                    requireNotNull(engine.getCursorDrawerDelegate()) { "not_ready" }.remoteScroll(command.dx, command.dy)
+                }
             }
             is RemoteCommand.Open -> {
                 hideMenuOverlay()
                 search(command.text)
             }
             is RemoteCommand.Text -> {
-                val focused = currentFocus
+                val focused = RemoteUiWindows.activeRoot(phoneRemote?.foregroundActivity ?: this).findFocus()
                 if (focused is android.widget.EditText) {
                     focused.setText(command.text)
                     focused.setSelection(focused.length())
@@ -220,12 +285,16 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
             is RemoteCommand.Action -> when (command.name) {
                 "status" -> return JSONObject().put("tabs", tabsModel.tabsStates.size)
                 "click" -> {
-                    require(engine != null) { "not_ready" }
-                    hideOverlayForPhone()
-                    engine.setVirtualCursorMode(true)
-                    requireNotNull(engine.getCursorDrawerDelegate()) { "not_ready" }.remoteClick()
+                    remoteNavigationGesture.reset()
+                    if (remoteNavigationRoot() != null) remoteKey("ok")
+                    else {
+                        require(engine != null) { "not_ready" }
+                        hideOverlayForPhone()
+                        engine.setVirtualCursorMode(true)
+                        requireNotNull(engine.getCursorDrawerDelegate()) { "not_ready" }.remoteClick()
+                    }
                 }
-                "back" -> navigateBack()
+                "back" -> remoteBack()
                 "forward" -> engine?.goForward()
                 "refresh" -> refresh()
                 "home" -> { hideMenuOverlay(); navigate(settingsModel.homePage) }
@@ -239,15 +308,8 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
                 "newTab" -> openInNewTab(settingsModel.homePage, tabsModel.tabsStates.size, navigateImmediately = true)
                 "closeTab" -> closeTab(tabsModel.currentTab.value)
                 else -> {
-                    val key = when (command.name) {
-                        "up" -> KeyEvent.KEYCODE_DPAD_UP
-                        "down" -> KeyEvent.KEYCODE_DPAD_DOWN
-                        "left" -> KeyEvent.KEYCODE_DPAD_LEFT
-                        "right" -> KeyEvent.KEYCODE_DPAD_RIGHT
-                        else -> KeyEvent.KEYCODE_DPAD_CENTER
-                    }
-                    dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, key))
-                    dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, key))
+                    remoteNavigationGesture.reset()
+                    remoteKey(command.name)
                 }
             }
         }
@@ -287,6 +349,13 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
         vb.rlActionBar.visibility = View.INVISIBLE
         vb.progressBar.visibility = View.GONE
 
+        vb.root.viewTreeObserver.addOnGlobalFocusChangeListener { old, focused ->
+            if (old is android.widget.ImageButton) { old.scaleX = 1f; old.scaleY = 1f }
+            if (menuOverlayOpen) {
+                vb.tvMenuFocusHint.text = RemoteUiNavigator.label(focused)
+                if (focused is android.widget.ImageButton) { focused.scaleX = 1.08f; focused.scaleY = 1.08f }
+            }
+        }
         vb.vTabs.listener = tabsListener
 
         vb.ibAdBlock.setOnClickListener { toggleAdBlockForTab() }
@@ -306,7 +375,6 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
 
         vb.llBottomPanel.childs.forEach {
             it.setOnTouchListener(bottomButtonsOnTouchListener)
-            it.onFocusChangeListener = bottomButtonsFocusListener
             it.setOnKeyListener(bottomButtonsKeyListener)
         }
 
@@ -469,15 +537,10 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
         }
     }
 
-    private val bottomButtonsFocusListener = View.OnFocusChangeListener { view, hasFocus ->
-        if (hasFocus) {
-            hideMenuOverlay(false)
-        }
-    }
-
     private val bottomButtonsKeyListener = View.OnKeyListener { view, i, keyEvent ->
         when (keyEvent.keyCode) {
             KeyEvent.KEYCODE_DPAD_UP -> {
+                if (menuOverlayOpen) return@OnKeyListener false
                 if (keyEvent.action == KeyEvent.ACTION_UP) {
                     hideBottomPanel()
                     tabsModel.currentTab.value?.webEngine?.getView()?.requestFocus()
@@ -522,6 +585,8 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
 
     override fun onDestroy() {
         Log.d(TAG, "onDestroy")
+        phoneRemote?.close()
+        phoneRemote = null
         //here properties can be uninitialized in case of wrong activity for incognito mode
         //detection and force activity restart in onCreate()
         if (::tabsModel.isInitialized) {
@@ -658,7 +723,7 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
             e.printStackTrace()
 
             if (!config.isWebEngineGecko()) {
-                val dialogBuilder = AlertDialog.Builder(this)
+                val dialogBuilder = RemoteUiWindows.alert(this)
                     .setTitle(R.string.error)
                     .setCancelable(false)
                     .setMessage(R.string.err_webview_can_not_link)
@@ -800,8 +865,6 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
     }
 
     override fun onStop() {
-        phoneRemote?.close()
-        phoneRemote = null
         super.onStop()
         unbindService(downloadServiceConnection)
         downloadService = null
@@ -842,7 +905,7 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
         val currentHostConfig = tabsModel.findHostConfig(tab,false)
         val currentBlockPopupsLevelValue = currentHostConfig?.popupBlockLevel ?: HostConfig.DEFAULT_BLOCK_POPUPS_VALUE
         val hostName = currentHostConfig?.hostName ?: try { URL(tab.url).host } catch (e: Exception) { "" }
-        AlertDialog.Builder(this)
+        RemoteUiWindows.alert(this)
             .setTitle(getString(R.string.block_popups_s, hostName))
             .setSingleChoiceItems(R.array.popup_blocking_level, currentBlockPopupsLevelValue) {
                     dialog, itemId -> lifecycleScope.launch {
@@ -936,7 +999,7 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
     }
 
     fun toggleMenu() {
-        if (vb.rlActionBar.isInvisible) {
+        if (!menuOverlayOpen) {
             showMenuOverlay()
         } else {
             hideMenuOverlay()
@@ -994,13 +1057,12 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
      *
      * @return true if the IME was visible and a hide was requested.
      */
-    private fun hideSoftwareKeyboardIfVisible(): Boolean {
-        val root = window.decorView.rootView
+    private fun hideSoftwareKeyboardIfVisible(root: View = window.decorView.rootView): Boolean {
         val insets = ViewCompat.getRootWindowInsets(root) ?: return false
         if (!insets.isVisible(WindowInsetsCompat.Type.ime())) {
             return false
         }
-        val view = currentFocus ?: root
+        val view = root.findFocus() ?: root
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(view.windowToken, 0)
         return true
@@ -1028,6 +1090,12 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
     }
 
     private fun showMenuOverlay() {
+        menuOverlayOpen = true
+        remoteNavigationGesture.reset()
+        vb.rlActionBar.animate().cancel()
+        vb.llBottomPanel.animate().cancel()
+        vb.ivMiniatures.animate().cancel()
+        vb.tvMenuFocusHint.visibility = View.VISIBLE
         vb.ivMiniatures.visibility = View.VISIBLE
         vb.llBottomPanel.visibility = View.VISIBLE
         vb.flWebViewContainer.visibility = View.INVISIBLE
@@ -1046,17 +1114,17 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
                 .setInterpolator(DecelerateInterpolator())
                 .translationY(0f)
                 .alpha(1f)
-                .withEndAction {
-                    vb.vActionBar.catchFocus()
-                }
+                .withEndAction(null)
                 .start()
 
         vb.vActionBar.dismissExtendedAddressBarMode()
 
         vb.rlActionBar.visibility = View.VISIBLE
+        vb.vActionBar.catchFocus()
         vb.rlActionBar.translationY = -vb.rlActionBar.height.toFloat()
         vb.rlActionBar.alpha = 0f
         vb.rlActionBar.animate()
+                .withEndAction(null)
                 .translationY(0f)
                 .alpha(1f)
                 .setDuration(300)
@@ -1066,6 +1134,7 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
         vb.ivMiniatures.layoutParams = vb.ivMiniatures.layoutParams.apply { this.height = vb.flWebViewContainer.height }
         vb.ivMiniatures.translationY = 0f
         vb.ivMiniatures.animate()
+                .withEndAction(null)
                 .translationY(vb.rlActionBar.height.toFloat())
                 .setDuration(300)
                 .setInterpolator(DecelerateInterpolator())
@@ -1101,6 +1170,12 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
     }
 
     private fun hideMenuOverlay(hideBottomButtons: Boolean = true) {
+        menuOverlayOpen = false
+        remoteNavigationGesture.reset()
+        vb.tvMenuFocusHint.visibility = View.INVISIBLE
+        vb.rlActionBar.animate().cancel()
+        vb.llBottomPanel.animate().cancel()
+        vb.ivMiniatures.animate().cancel()
         if (vb.rlActionBar.visibility == View.INVISIBLE) {
             return
         }
@@ -1134,7 +1209,7 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
                     vb.ivMiniatures.setImageResource(0)
                     syncTabWithTitles()
                     vb.flWebViewContainer.visibility = View.VISIBLE
-                    if (hideBottomButtons) {
+                    if (hideBottomButtons && RemoteUiWindows.activeRoot(this@MainActivity) === window.decorView) {
                         tabsModel.currentTab.value?.webEngine?.getView()?.requestFocus()
                     }
                 }
@@ -1505,7 +1580,7 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
                     favoriteItem.homePageBookmark = true
                     onEditHomePageBookmark(favoriteItem)
                 } else {
-                    AlertDialog.Builder(this@MainActivity)
+                    RemoteUiWindows.alert(this@MainActivity)
                         .setTitle(R.string.bookmarks)
                         .setItems(arrayOf(getString(R.string.edit), getString(R.string.delete))) { _, which ->
                             when (which) {
@@ -1624,7 +1699,7 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
         if (openUrlInExternalAppDialog != null) {
             return
         }
-        openUrlInExternalAppDialog = AlertDialog.Builder(this)
+        openUrlInExternalAppDialog = RemoteUiWindows.alert(this)
             .setTitle(R.string.site_asks_to_open_unknown_url)
             .setMessage(getString(R.string.site_asks_to_open_unknown_url_message) + "\n\n" + url)
             .setPositiveButton(R.string.yes) { _, _ ->

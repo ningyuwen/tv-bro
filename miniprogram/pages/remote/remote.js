@@ -9,7 +9,7 @@ const websites = [
 ]
 Page({
   data: { connected: false, busy: false, status: '正在寻找电视…', host: '', port: '8877', code: '', text: '', manual: false, devices: [],
-    media: emptyMedia(), mediaBusy: false, fullscreenBusy: false, volume: emptyVolume(), volumeBusy: false, websites, openingWebsite: '' },
+    navigation: false, focusedControl: '', showDirections: false, navigationSupported: false, media: emptyMedia(), mediaBusy: false, fullscreenBusy: false, volume: emptyVolume(), volumeBusy: false, websites, openingWebsite: '' },
   onLoad() {
     this.epoch = 0
     this.discovery = new Discovery(wx)
@@ -19,9 +19,9 @@ Page({
       this.stopMediaPolling()
       this.stopVolumePolling()
       this.clearMotion()
-      this.setData({ connected: false, busy: false, fullscreenBusy: false, status: message })
+      this.setData({ connected: false, navigation: false, focusedControl: '', busy: false, fullscreenBusy: false, status: message })
       if (this.visible) this.retry = setTimeout(() => this.find(), 3000)
-    })
+    }, ui => this.updateUi(ui))
   },
   onShow() { this.visible = true; this.find() },
   onHide() { this.visible = false; this.disconnect() },
@@ -65,6 +65,7 @@ Page({
     this.mediaSupported = info.mediaControl === 1
     this.fullscreenSupported = info.fullscreenControl === 1
     this.volumeSupported = info.volumeControl === 1
+    this.setData({ navigationSupported: info.uiNavigation === 1 })
     if (device.deviceId && info.deviceId !== device.deviceId) throw new Error('盒子地址已变化，正在重新查找')
     if (!/^[a-f0-9-]{36}$/.test(info.deviceId)) throw new Error('电视版本过旧，请更新青柠浏览器')
     if (!this.visible || epoch !== this.epoch) throw new Error('连接取消')
@@ -90,7 +91,7 @@ Page({
     wx.setStorageSync('lime-session-v1', { host: device.host, port: Number(device.port), deviceId: info.deviceId, token: this.client.token })
     this.setData({ connected: true, busy: false, devices: [], status: '已连接青柠浏览器', code: '', manual: false })
     clearInterval(this.heartbeat)
-    this.heartbeat = setInterval(() => this.client.request('status').catch(error => this.client.close(error)), 5000)
+    this.heartbeat = setInterval(() => this.client.request('status').catch(error => this.client.close(error)), 1000)
     this.startMediaPolling()
     this.startVolumePolling()
   },
@@ -122,13 +123,25 @@ Page({
     if (this.discovery) this.discovery.stop()
     this.clearMotion()
     if (this.client) this.client.close()
-    this.setData({ connected: false, busy: false, fullscreenBusy: false, status: '已断开，打开小程序可自动重连' })
+    this.setData({ connected: false, navigation: false, focusedControl: '', busy: false, fullscreenBusy: false, status: '已断开，打开小程序可自动重连' })
   },
   error(error) {
     this.setData({ status: error.message })
     wx.showToast({ title: error.message, icon: 'none', duration: 2600 })
   },
+  updateUi(ui) {
+    if (!ui || !['pointer', 'navigation'].includes(ui.mode)) return
+    const navigation = ui.mode === 'navigation'
+    if (navigation !== this.data.navigation) {
+      this.clearMotion()
+      this.setData({ showDirections: navigation })
+    }
+    this.setData({ navigation, focusedControl: typeof ui.focus === 'string' ? ui.focus.slice(0, 120) : '' })
+  },
+  toggleDirections() { this.setData({ showDirections: !this.data.showDirections }) },
   async command(event) {
+    // Discard any unfinished drag before changing the TV's interface.
+    this.clearMotion()
     try { await this.client.request(event.currentTarget.dataset.op) }
     catch (error) { this.error(error) }
   },

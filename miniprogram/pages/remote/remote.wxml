@@ -21,8 +21,25 @@
     <text class="footnote">手机与盒子连接同一 Wi-Fi，无需电脑常驻。</text>
   </view>
   <block wx:else>
-    <view class="trackpad" catchtouchstart="touchStart" catchtouchmove="touchMove" catchtouchend="touchEnd" catchtouchcancel="touchCancel">
-      <text class="pad-symbol">＋</text><text class="pad-title">触控板</text><text class="pad-hint">单指移动 · 轻点点击 · 双指滚动</text>
+    <view class="trackpad {{navigation ? 'navigation-pad' : ''}}" catchtouchstart="touchStart" catchtouchmove="touchMove" catchtouchend="touchEnd" catchtouchcancel="touchCancel">
+      <text class="pad-symbol">{{navigation ? '↔' : '＋'}}</text>
+      <text class="pad-title">{{navigation ? '界面导航' : '网页触控板'}}</text>
+      <text class="pad-hint">{{navigation ? '滑动切换选项 · 轻点确定' : '单指移动 · 轻点点击 · 双指滚动'}}</text>
+      <text wx:if="{{navigation && focusedControl}}" class="pad-focus">当前选中：{{focusedControl}}</text>
+    </view>
+    <view class="remote-tools row">
+      <button bindtap="toggleDirections">{{showDirections ? '收起方向键' : '方向键'}}</button>
+      <button data-op="back" bindtap="command">返回 / 关闭</button>
+    </view>
+    <view wx:if="{{showDirections}}" class="card direction-card">
+      <view class="direction-pad">
+        <button class="direction-up" data-op="up" bindtap="command" aria-label="向上">↑</button>
+        <button class="direction-left" data-op="left" bindtap="command" aria-label="向左">←</button>
+        <button class="direction-ok primary" data-op="ok" bindtap="command">确定</button>
+        <button class="direction-right" data-op="right" bindtap="command" aria-label="向右">→</button>
+        <button class="direction-down" data-op="down" bindtap="command" aria-label="向下">↓</button>
+      </view>
+      <text class="footnote">{{navigationSupported ? '上下切换区域，左右选择按钮；返回关闭当前界面。' : '请更新电视浏览器，以使用触控板菜单导航。'}}</text>
     </view>
     <view class="quick grid">
       <button data-op="back" bindtap="command">← 返回</button><button data-op="home" bindtap="command">⌂ 首页</button><button data-op="refresh" bindtap="command">↻ 刷新</button>

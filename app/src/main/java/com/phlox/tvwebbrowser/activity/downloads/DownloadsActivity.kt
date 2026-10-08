@@ -1,7 +1,6 @@
 package com.phlox.tvwebbrowser.activity.downloads
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.*
 import android.net.Uri
 import android.os.Build
@@ -19,6 +18,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
+import com.phlox.tvwebbrowser.remote.RemoteUiWindows
 import com.phlox.tvwebbrowser.BuildConfig
 import com.phlox.tvwebbrowser.R
 import com.phlox.tvwebbrowser.databinding.ActivityDownloadsBinding
@@ -189,7 +189,7 @@ class DownloadsActivity : AppCompatActivity(), AdapterView.OnItemClickListener, 
         if(canInstallFromOtherSources) {
             launchInstallAPKActivity(this, download)
         } else {
-            AlertDialog.Builder(this)
+            RemoteUiWindows.alert(this)
                     .setTitle(R.string.app_name)
                     .setMessage(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
                         R.string.turn_on_unknown_sources_for_app else R.string.turn_on_unknown_sources)

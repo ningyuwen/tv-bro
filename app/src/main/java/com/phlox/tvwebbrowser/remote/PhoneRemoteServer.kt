@@ -147,7 +147,7 @@ class PhoneRemoteServer(
                 require(++requests <= 120) { "rate_limited" }
                 val response = if (request.optString("op") == "info") {
                     JSONObject().put("deviceId", deviceId).put("name", "青柠浏览器").put("protocol", 1)
-                        .put("mediaControl", 1).put("fullscreenControl", 1).put("volumeControl", 1)
+                        .put("uiNavigation", 1).put("mediaControl", 1).put("fullscreenControl", 1).put("volumeControl", 1)
                 } else if (request.optString("op") == "authorize") {
                     val issued = authorize(socket.inetAddress.hostAddress ?: "")
                     JSONObject().put("token", issued).put("deviceId", deviceId)

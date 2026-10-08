@@ -1,6 +1,5 @@
 package com.phlox.tvwebbrowser.activity.main.dialogs.settings
 
-import android.app.AlertDialog
 import android.content.Context
 import android.os.Build
 import android.util.AttributeSet
@@ -17,6 +16,7 @@ import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.webkit.WebViewFeature
+import com.phlox.tvwebbrowser.remote.RemoteUiWindows
 import com.phlox.tvwebbrowser.AppContext
 import com.phlox.tvwebbrowser.Config
 import com.phlox.tvwebbrowser.R
@@ -92,7 +92,7 @@ class MainSettingsView @JvmOverloads constructor(
             override fun onItemSelected(parent: AdapterView<*>, view: View, position: Int, id: Long) {
                 if (config.webEngine == Config.SupportedWebEngines[position]) return
                 if (Config.SupportedWebEngines[position] == Config.ENGINE_GECKO_VIEW && !Config.canRecommendGeckoView()) {
-                    AlertDialog.Builder(context)
+                    RemoteUiWindows.alert(context)
                         .setTitle(R.string.warning)
                         .setMessage(R.string.settings_engine_change_gecko_msg)
                         .setPositiveButton(R.string.ok) { _, _ ->
@@ -105,7 +105,7 @@ class MainSettingsView @JvmOverloads constructor(
                         .show()
                     return
                 } else if (Config.SupportedWebEngines[position] == Config.ENGINE_WEB_VIEW) {
-                    AlertDialog.Builder(context)
+                    RemoteUiWindows.alert(context)
                         .setTitle(R.string.warning)
                         .setMessage(R.string.settings_engine_change_webview_msg)
                         .setPositiveButton(R.string.ok) { _, _ ->
@@ -127,7 +127,7 @@ class MainSettingsView @JvmOverloads constructor(
     }
 
     private fun showRestartDialog() {
-        AlertDialog.Builder(context)
+        RemoteUiWindows.alert(context)
             .setTitle(R.string.need_restart)
             .setMessage(R.string.need_restart_message)
             .setPositiveButton(R.string.exit) { _, _ ->
@@ -181,7 +181,7 @@ class MainSettingsView @JvmOverloads constructor(
                 return@setOnCheckedChangeListener
             }
 
-            AlertDialog.Builder(context)
+            RemoteUiWindows.alert(context)
                 .setTitle(R.string.warning)
                 .setMessage(R.string.web_engine_debug_warning_message)
                 .setPositiveButton(R.string.ok) { _, _ ->

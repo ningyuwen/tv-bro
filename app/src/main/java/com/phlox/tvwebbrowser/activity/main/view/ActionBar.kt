@@ -100,6 +100,17 @@ class ActionBar @JvmOverloads constructor(
             vb.ibVoiceSearch.setOnClickListener { callback?.initiateVoiceSearch() }
         }
 
+        val controls = listOf(vb.ibMenu, vb.ibVoiceSearch, vb.ibHistory, vb.ibFavorites,
+            vb.ibDownloads, vb.ibIncognito, vb.ibSettings).filter { it.parent === this }
+        controls.forEachIndexed { index, button ->
+            button.isFocusable = true
+            button.isFocusableInTouchMode = true
+            button.nextFocusLeftId = controls.getOrNull(index - 1)?.id ?: button.id
+            button.nextFocusRightId = controls.getOrNull(index + 1)?.id ?: R.id.etUrl
+        }
+        vb.etUrl.nextFocusLeftId = R.id.ibSettings
+        vb.etUrl.nextFocusDownId = R.id.vTabs
+
         vb.ibIncognito.isChecked = incognitoMode
 
         vb.etUrl.onFocusChangeListener = etUrlFocusChangeListener

@@ -24,7 +24,7 @@
 .website-badge { display: flex; align-items: center; justify-content: center; width: 60rpx; height: 60rpx; border-radius: 18rpx; color: white; font-size: 30rpx; font-weight: 650; }
 .website-name { display: block; max-width: 100%; margin-top: 12rpx; font-size: 23rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .website-pressed { background: #e9efe5; }
-.trackpad { height: 58vh; min-height: 640rpx; max-height: 1040rpx; background: #132d29; border-radius: 30rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #cce3c0; }
+.trackpad { height: 42vh; min-height: 460rpx; max-height: 720rpx; background: #132d29; border-radius: 30rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #cce3c0; }
 .pad-symbol { font-size: 90rpx; line-height: 1; color: #bbf56f; font-weight: 200; }
 .pad-title { margin-top: 25rpx; font-size: 29rpx; letter-spacing: 6rpx; }
 .pad-hint { margin-top: 20rpx; font-size: 23rpx; color: #8daa9e; }
@@ -38,3 +38,15 @@
 .volume-value { color: #5d7269; font-size: 28rpx; font-variant-numeric: tabular-nums; }
 .volume-card slider { margin: 24rpx 12rpx; }
 .volume-mute { font-size: 27rpx; }
+
+.navigation-pad { background: #203b29; }
+.pad-focus { max-width: 85%; margin-top: 28rpx; padding: 12rpx 22rpx; border: 1rpx solid #718d63; border-radius: 14rpx; font-size: 27rpx; text-align: center; overflow-wrap: break-word; }
+.remote-tools { margin-top: 18rpx; }
+.remote-tools button { flex: 1; min-width: 0; }
+.direction-pad { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(3, 80rpx); gap: 12rpx; max-width: 460rpx; margin: 0 auto; }
+.direction-pad button { width: 100%; min-width: 0; margin: 0; padding: 0; line-height: 80rpx; }
+.direction-up { grid-column: 2; grid-row: 1; }
+.direction-left { grid-column: 1; grid-row: 2; }
+.direction-ok { grid-column: 2; grid-row: 2; }
+.direction-right { grid-column: 3; grid-row: 2; }
+.direction-down { grid-column: 2; grid-row: 3; }

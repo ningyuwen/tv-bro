@@ -45,9 +45,11 @@ function decodeUtf8(bytes) {
   return decodeURIComponent(escaped)
 }
 class RemoteClient {
-  constructor(wxApi, onDisconnect = () => {}) {
+  constructor(wxApi, onDisconnect = () => {}, onUiState = () => {}) {
     this.wx = wxApi
     this.onDisconnect = onDisconnect
+    this.onUiState = onUiState
+    this.uiSequence = 0
     this.sequence = 0
     this.pending = new Map()
     this.buffer = []
@@ -92,6 +94,10 @@ class RemoteClient {
       if (!request) continue
       clearTimeout(request.timer)
       this.pending.delete(reply.id)
+      if (reply.ok && reply.ui && reply.id >= this.uiSequence) {
+        this.uiSequence = reply.id
+        this.onUiState(reply.ui)
+      }
       if (reply.ok) request.resolve(reply)
       else request.reject(Object.assign(new Error(ERRORS[reply.error] || '操作失败：' + reply.error), { code: reply.error }))
     }

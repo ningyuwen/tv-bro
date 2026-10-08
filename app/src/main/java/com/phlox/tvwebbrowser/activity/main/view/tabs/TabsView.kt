@@ -1,6 +1,5 @@
 package com.phlox.tvwebbrowser.activity.main.view.tabs
 
-import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Rect
 import android.util.AttributeSet
@@ -8,6 +7,7 @@ import android.view.LayoutInflater
 import android.widget.RelativeLayout
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.phlox.tvwebbrowser.remote.RemoteUiWindows
 import com.phlox.tvwebbrowser.R
 import com.phlox.tvwebbrowser.activity.main.SettingsModel
 import com.phlox.tvwebbrowser.activity.main.TabsModel
@@ -62,7 +62,7 @@ class TabsView @JvmOverloads constructor(
 
   fun showTabOptions(tab: WebTabState) {
     val tabIndex = tabsModel.tabsStates.indexOf(tab)
-    AlertDialog.Builder(context)
+    RemoteUiWindows.alert(context)
       .setTitle(R.string.tabs)
       .setItems(R.array.tabs_options) { _, i ->
         when (i) {

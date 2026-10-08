@@ -12,7 +12,7 @@
         <shape android:shape="rectangle">
             <corners android:radius="5dp" />
             <solid android:color="@color/button_corner" />
-            <stroke android:color="#33add6" android:width="1dp" />
+            <stroke android:color="#8FE34E" android:width="3dp" />
             <padding android:bottom="10dp" android:left="10dp" android:right="10dp" android:top="10dp" />
         </shape>
     </item>
@@ -28,7 +28,7 @@
         <shape android:shape="rectangle">
             <corners android:radius="5dp" />
             <solid android:color="@color/button_background_disabled" />
-            <stroke android:color="#33add6" android:width="1dp" />
+            <stroke android:color="#8FE34E" android:width="3dp" />
             <padding android:bottom="10dp" android:left="10dp" android:right="10dp" android:top="10dp" />
         </shape>
     </item>
@@ -44,7 +44,7 @@
         <shape android:shape="rectangle">
             <corners android:radius="5dp" />
             <solid android:color="@color/button_background_focused" />
-            <stroke android:color="#33add6" android:width="1dp" />
+            <stroke android:color="#8FE34E" android:width="3dp" />
             <padding android:bottom="10dp" android:left="10dp" android:right="10dp" android:top="10dp" />
         </shape>
     </item>

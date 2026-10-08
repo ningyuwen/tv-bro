@@ -1,6 +1,6 @@
 package com.phlox.tvwebbrowser.activity.main.dialogs.favorites
 
-import android.app.Dialog
+import com.phlox.tvwebbrowser.remote.RemoteDialog as Dialog
 import android.content.Context
 import android.view.View
 import android.widget.Button

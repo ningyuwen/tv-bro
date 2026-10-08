@@ -1,6 +1,6 @@
 package com.phlox.tvwebbrowser.activity.main.dialogs.settings
 
-import android.app.Dialog
+import com.phlox.tvwebbrowser.remote.RemoteDialog as Dialog
 import android.content.Context
 import android.content.DialogInterface
 import android.os.Bundle

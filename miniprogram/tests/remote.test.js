@@ -77,3 +77,17 @@ test('unknown response IDs do not acknowledge another command', async () => {
   await pending
   remote.close()
 })
+test('UI feedback follows the newest acknowledged command and ignores stale or unknown replies', async () => {
+  const { socket, remote } = await client()
+  const states = []
+  remote.onUiState = state => states.push(state)
+  const oldStatus = remote.request('status'), oldId = socket.last.id
+  const menu = remote.request('menu'), menuId = socket.last.id
+  deliver(socket, JSON.stringify({ id: menuId, ok: true, ui: { mode: 'navigation', focus: '设置' } }) + '\n')
+  await menu
+  deliver(socket, JSON.stringify({ id: oldId, ok: true, ui: { mode: 'pointer', focus: '' } }) + '\n')
+  await oldStatus
+  deliver(socket, JSON.stringify({ id: 9999, ok: true, ui: { mode: 'pointer' } }) + '\n')
+  assert.deepEqual(states, [{ mode: 'navigation', focus: '设置' }])
+  remote.close()
+})

@@ -5,7 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.animation.AnimationUtils
 import android.widget.*
-import androidx.appcompat.app.AlertDialog
+import com.phlox.tvwebbrowser.remote.RemoteUiWindows
 import com.phlox.tvwebbrowser.Config
 import com.phlox.tvwebbrowser.R
 import com.phlox.tvwebbrowser.activity.main.SettingsModel
@@ -26,7 +26,7 @@ object SearchEngineConfigDialogFactory {
             selected = Config.SearchEnginesURLs.indexOf(settings.config.searchEngineURL.value)
         }
 
-        val builder = AlertDialog.Builder(context)
+        val builder = RemoteUiWindows.compatAlert(context)
 
         val view = LayoutInflater.from(context).inflate(R.layout.dialog_search_engine, null)
         val etUrl = view.findViewById(R.id.etUrl) as EditText

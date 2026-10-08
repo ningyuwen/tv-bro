@@ -45,6 +45,7 @@ import androidx.core.graphics.createBitmap
 import androidx.core.net.toUri
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
+import com.phlox.tvwebbrowser.remote.RemoteUiWindows
 import com.phlox.tvwebbrowser.AppContext
 import com.phlox.tvwebbrowser.Config
 import com.phlox.tvwebbrowser.R
@@ -229,7 +230,7 @@ open class WebViewEx(context: Context, val callback: Callback, val jsInterface: 
 
                 val activity = callback.getActivity() ?: return
                 webPermissionsRequest = request
-                permRequestDialog = AlertDialog.Builder(activity)
+                permRequestDialog = RemoteUiWindows.compatAlert(activity)
                         .setMessage(activity.getString(R.string.web_perm_request_confirmation, TextUtils.join("\n", request.resources)))
                         .setCancelable(false)
                         .setNegativeButton(R.string.deny) { _, _ ->
@@ -289,7 +290,7 @@ open class WebViewEx(context: Context, val callback: Callback, val jsInterface: 
                 val activity = this@WebViewEx.callback.getActivity() ?: return
                 geoPermissionOrigin = origin
                 geoPermissionsCallback = callback
-                permRequestDialog = AlertDialog.Builder(activity)
+                permRequestDialog = RemoteUiWindows.compatAlert(activity)
                         .setMessage(activity.getString(R.string.web_perm_request_confirmation, activity.getString(R.string.location)))
                         .setCancelable(false)
                         .setNegativeButton(R.string.deny) { dialog, which ->
@@ -468,7 +469,7 @@ open class WebViewEx(context: Context, val callback: Callback, val jsInterface: 
                     it.addView(userNameEdit)
                     it.addView(passwordEdit)
                 }
-                AlertDialog.Builder(context)
+                RemoteUiWindows.compatAlert(context)
                     .setTitle(R.string.http_auth_title)
                     .setCancelable(false)
                     .setView(container)

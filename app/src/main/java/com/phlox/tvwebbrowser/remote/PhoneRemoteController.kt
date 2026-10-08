@@ -1,5 +1,8 @@
 package com.phlox.tvwebbrowser.remote
 
+import android.app.Activity
+import android.app.Application
+import android.os.Bundle
 import android.app.AlertDialog
 import android.graphics.Bitmap
 import android.os.Handler
@@ -13,18 +16,35 @@ import androidx.lifecycle.Lifecycle
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.MultiFormatWriter
 import com.phlox.tvwebbrowser.R
-import com.phlox.tvwebbrowser.activity.main.MainActivity
+import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONObject
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 class PhoneRemoteController(
-    private val activity: MainActivity,
+    private val activity: AppCompatActivity,
     private val execute: (RemoteCommand, (Result<JSONObject>) -> Unit) -> Unit
 ) : AutoCloseable {
     private val handler = Handler(Looper.getMainLooper())
     private var server: PhoneRemoteServer? = null
+    var foregroundActivity: Activity? = null
+        private set
+    private var observingActivities = false
+    private val activityObserver = object : Application.ActivityLifecycleCallbacks {
+        override fun onActivityResumed(current: Activity) { foregroundActivity = current }
+        override fun onActivityPaused(current: Activity) {
+            if (foregroundActivity === current) foregroundActivity = null
+        }
+        override fun onActivityStopped(current: Activity) {
+            // Moving between browser screens keeps the endpoint alive; leaving the app closes it.
+            if (foregroundActivity == null) close()
+        }
+        override fun onActivityDestroyed(current: Activity) { if (current === activity) close() }
+        override fun onActivityCreated(current: Activity, state: Bundle?) {}
+        override fun onActivityStarted(current: Activity) {}
+        override fun onActivitySaveInstanceState(current: Activity, state: Bundle) {}
+    }
     private var dialog: AlertDialog? = null
     private var approvalDialog: AlertDialog? = null
     private var discovery: RemoteDiscoveryServer? = null
@@ -36,6 +56,11 @@ class PhoneRemoteController(
     fun startIfEnabled() {
         if (!prefs.getBoolean("enabled", true) || server != null) return
         try {
+            if (!observingActivities) {
+                activity.application.registerActivityLifecycleCallbacks(activityObserver)
+                observingActivities = true
+                foregroundActivity = activity
+            }
             // Keep the existing single-phone credential when upgrading to multiple phones.
             val remembered = prefs.getStringSet("tokens", null)?.toSet()
                 ?: setOfNotNull(prefs.getString("token", null))
@@ -140,7 +165,7 @@ class PhoneRemoteController(
         handler.post {
             try {
                 require(!expired.get() && server === expected && expected?.isRunning == true &&
-                    activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) { "background" }
+                    foregroundActivity != null) { "background" }
                 require(authorized()) { "unauthorized" }
                 dialog?.dismiss()
                 dialog = null
@@ -162,6 +187,9 @@ class PhoneRemoteController(
     }
 
     override fun close() {
+        if (observingActivities) activity.application.unregisterActivityLifecycleCallbacks(activityObserver)
+        observingActivities = false
+        foregroundActivity = null
         discovery?.close()
         discovery = null
         approvalDialog?.dismiss()

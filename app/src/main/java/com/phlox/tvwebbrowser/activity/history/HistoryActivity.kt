@@ -1,6 +1,5 @@
 package com.phlox.tvwebbrowser.activity.history
 
-import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.view.Gravity
@@ -14,6 +13,7 @@ import android.widget.ImageButton
 import android.widget.PopupMenu
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.phlox.tvwebbrowser.remote.RemoteUiWindows
 import com.phlox.tvwebbrowser.R
 import com.phlox.tvwebbrowser.databinding.ActivityHistoryBinding
 import com.phlox.tvwebbrowser.singleton.AppDatabase
@@ -76,7 +76,7 @@ class HistoryActivity : AppCompatActivity(), AdapterView.OnItemClickListener, Ad
 
     private fun showDeleteDialog(deleteAll: Boolean) {
         if (adapter!!.items.isEmpty() || (adapter!!.selectedItems.isEmpty() && !deleteAll)) return
-        AlertDialog.Builder(this)
+        RemoteUiWindows.alert(this)
                 .setTitle(R.string.delete)
                 .setMessage(if (deleteAll) R.string.msg_delete_history_all else R.string.msg_delete_history)
                 .setPositiveButton(android.R.string.ok) { _, _ ->

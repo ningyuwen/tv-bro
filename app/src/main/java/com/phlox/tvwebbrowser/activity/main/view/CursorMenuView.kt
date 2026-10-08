@@ -2,7 +2,6 @@ package com.phlox.tvwebbrowser.activity.main.view
 
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
-import android.app.AlertDialog
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
@@ -14,6 +13,7 @@ import android.view.animation.AccelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import android.widget.CheckBox
 import android.widget.FrameLayout
+import com.phlox.tvwebbrowser.remote.RemoteUiWindows
 import com.phlox.tvwebbrowser.AppContext
 import com.phlox.tvwebbrowser.R
 import com.phlox.tvwebbrowser.databinding.ViewCursorMenuBinding
@@ -215,7 +215,7 @@ class CursorMenuView @JvmOverloads constructor(
             setPadding(pad, pad, pad, pad)
             addView(checkBox)
         }
-        AlertDialog.Builder(context)
+        RemoteUiWindows.alert(context)
             .setTitle(R.string.direct_navigation_mode_title)
             .setMessage(R.string.direct_navigation_mode_message)
             .setView(container)

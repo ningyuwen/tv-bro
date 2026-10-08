@@ -89,6 +89,12 @@
 
         <ImageButton
             android:id="@+id/ibCloseTab"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusLeft="@id/ibCloseTab"
+            android:nextFocusRight="@id/ibBack"
+            android:nextFocusUp="@id/vTabs"
+            android:nextFocusDown="@id/ibCloseTab"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/button_bg_selector"
@@ -102,6 +108,12 @@
 
         <ImageButton
             android:id="@+id/ibBack"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusLeft="@id/ibCloseTab"
+            android:nextFocusRight="@id/ibForward"
+            android:nextFocusUp="@id/vTabs"
+            android:nextFocusDown="@id/ibBack"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/button_bg_selector"
@@ -115,6 +127,12 @@
 
         <ImageButton
             android:id="@+id/ibForward"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusLeft="@id/ibBack"
+            android:nextFocusRight="@id/ibRefresh"
+            android:nextFocusUp="@id/vTabs"
+            android:nextFocusDown="@id/ibForward"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/button_bg_selector"
@@ -130,6 +148,12 @@
 
         <ImageButton
             android:id="@+id/ibRefresh"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusLeft="@id/ibForward"
+            android:nextFocusRight="@id/ibAdBlock"
+            android:nextFocusUp="@id/vTabs"
+            android:nextFocusDown="@id/ibRefresh"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/button_bg_selector"
@@ -145,6 +169,12 @@
 
         <ImageButton
             android:id="@+id/ibAdBlock"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusLeft="@id/ibRefresh"
+            android:nextFocusRight="@id/ibPopupBlock"
+            android:nextFocusUp="@id/vTabs"
+            android:nextFocusDown="@id/ibAdBlock"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/button_bg_selector"
@@ -160,6 +190,12 @@
 
         <ImageButton
             android:id="@+id/ibPopupBlock"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusLeft="@id/ibAdBlock"
+            android:nextFocusRight="@id/ibHome"
+            android:nextFocusUp="@id/vTabs"
+            android:nextFocusDown="@id/ibPopupBlock"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/button_bg_selector"
@@ -175,6 +211,12 @@
 
         <ImageButton
             android:id="@+id/ibHome"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusLeft="@id/ibPopupBlock"
+            android:nextFocusRight="@id/ibHome"
+            android:nextFocusUp="@id/vTabs"
+            android:nextFocusDown="@id/ibHome"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/button_bg_selector"
@@ -221,6 +263,20 @@
             tools:text="1" />
     </androidx.constraintlayout.widget.ConstraintLayout>
     
+    <TextView
+        android:id="@+id/tvMenuFocusHint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/llBottomPanel"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="12dp"
+        android:padding="10dp"
+        android:background="@color/top_bar_background"
+        android:textColor="@color/default_url_color"
+        android:textSize="18sp"
+        android:accessibilityLiveRegion="polite"
+        android:visibility="invisible" />
+
     <com.phlox.tvwebbrowser.activity.main.view.CursorMenuView
         android:id="@+id/vCursorMenu"
         android:layout_width="match_parent"
