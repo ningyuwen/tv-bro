@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.view.View
 import android.view.ViewGroup
 import com.phlox.tvwebbrowser.widgets.cursor.CursorDrawerDelegate
+import org.json.JSONObject
 
 interface WebEngine {
     val url: String?
@@ -37,6 +38,10 @@ interface WebEngine {
     fun onUpdateAdblockSetting(newState: Boolean)
     fun hideFullscreenView()
     fun togglePlayback()
+    /** Only media timing/state is returned; URLs and titles never leave the browser. */
+    fun controlMedia(action: String, seconds: Double?, mediaId: String?, callback: (Result<JSONObject>) -> Unit) {
+        callback(Result.failure(IllegalArgumentException("media_unsupported")))
+    }
     suspend fun renderThumbnail(bitmap: Bitmap?): Bitmap?
     /**
      * At this point of time web view should be already created but not attached to window

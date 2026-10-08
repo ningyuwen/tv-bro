@@ -22,6 +22,8 @@ import com.phlox.tvwebbrowser.webengine.WebEngineProviderCallback
 import com.phlox.tvwebbrowser.webengine.WebEngineWindowProviderCallback
 import com.phlox.tvwebbrowser.widgets.cursor.CursorDrawerDelegate
 import com.phlox.tvwebbrowser.widgets.cursor.CursorLayout
+import org.json.JSONObject
+import org.json.JSONTokener
 
 
 class WebViewWebEngine(val tab: WebTabState) : WebEngine, CursorDrawerDelegate.Callback {
@@ -155,6 +157,24 @@ class WebViewWebEngine(val tab: WebTabState) : WebEngine, CursorDrawerDelegate.C
 
     override fun togglePlayback() {
         webView?.evaluateJavascript("tvBroTogglePlayback()", null)
+    }
+
+    private var mediaControlScript: String? = null
+
+    override fun controlMedia(action: String, seconds: Double?, mediaId: String?, callback: (Result<JSONObject>) -> Unit) {
+        val view = webView ?: return callback(Result.failure(IllegalArgumentException("not_ready")))
+        val script = mediaControlScript ?: view.context.assets.open("media_control.js").bufferedReader().use { it.readText() }
+            .also { mediaControlScript = it }
+        val args = listOf(JSONObject.quote(action), seconds?.toString() ?: "null",
+            mediaId?.let(JSONObject::quote) ?: "null", (System.currentTimeMillis() + 1500).toString())
+        view.evaluateJavascript("JSON.stringify(($script)(${args.joinToString(",")}))") { raw ->
+            callback(runCatching {
+                require(webView === view) { "media_changed" }
+                val result = JSONObject(JSONTokener(raw).nextValue() as? String ?: throw IllegalArgumentException("not_ready"))
+                require(!result.has("error")) { result.getString("error") }
+                result
+            })
+        }
     }
 
     override fun stopPlayback() {

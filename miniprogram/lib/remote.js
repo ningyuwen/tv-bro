@@ -1,6 +1,13 @@
 // NDJSON over wx.createTCPSocket. No server domains or cloud relay required.
 const MAX_FRAME = 16384
 const ERRORS = {
+  invalid_seek: '播放位置无效',
+  invalid_media: '请等待视频状态更新后重试',
+  no_media: '当前页面未检测到可控制的视频',
+  media_changed: '视频或标签已变化，请重试',
+  media_not_seekable: '此视频暂不支持调整进度',
+  media_unsupported: '当前播放器暂不支持此操作',
+  media_failed: '播放器操作失败，请稍后重试',
   approval_busy: '电视正在处理连接请求，请稍后重试',
   approval_denied: '电视未允许连接，请重试并在电视上确认',
   pair_failed: '配对失败或配对码过期，请在电视上重新配对',

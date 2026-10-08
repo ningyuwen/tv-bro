@@ -12,4 +12,3 @@ input { height: 88rpx; margin-bottom: 20rpx; }
 textarea { width: 100%; height: 170rpx; margin-bottom: 20rpx; }
 .row > button, .row > input { flex: 1; min-width: 0; }
 .grid button { width: 100%; font-size: 26rpx; }
-.dpad button { width: 100rpx; line-height: 90rpx; font-size: 34rpx; }
