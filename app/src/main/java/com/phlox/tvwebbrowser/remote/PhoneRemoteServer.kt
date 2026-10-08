@@ -18,8 +18,8 @@ import java.util.concurrent.TimeUnit
 /** Foreground LAN endpoint; control always requires a remembered credential or TV approval. */
 class PhoneRemoteServer(
     private val now: () -> Long = System::nanoTime,
-    initialToken: String? = null,
-    private val onToken: (String?) -> Unit = {},
+    initialTokens: Set<String> = emptySet(),
+    private val onTokens: (Set<String>) -> Unit = {},
     private val approve: (String) -> Boolean = { false },
     val deviceId: String = java.util.UUID.randomUUID().toString(),
     private val execute: (RemoteCommand, () -> Boolean) -> JSONObject
@@ -41,7 +41,7 @@ class PhoneRemoteServer(
     @Volatile private var active = false
     private var pairCode = ""
     private var pairDeadline = 0L
-    private var token: String? = initialToken?.takeIf { it.matches(Regex("[a-f0-9]{64}")) }
+    private val tokens = initialTokens.filter { it.matches(Regex("[a-f0-9]{64}")) }.toMutableSet()
     private var approvalBusy = false
     private var lastApproval = Long.MIN_VALUE
     private var failedAttempts = 0
@@ -81,10 +81,14 @@ class PhoneRemoteServer(
         check(active)
         pairCode = "%06d".format(java.util.Locale.ROOT, random.nextInt(1_000_000))
         pairDeadline = now() + TimeUnit.MINUTES.toNanos(5)
-        // Rotating the code revokes previously paired controllers.
-        token = null
-        onToken(null)
+        // Opening the QR page must not revoke phones that were already approved.
         return pairCode
+    }
+
+    @Synchronized fun revokeAll() {
+        tokens.clear()
+        pairDeadline = 0L
+        onTokens(emptySet())
     }
 
     @Synchronized private fun pair(code: String): String? {
@@ -102,8 +106,8 @@ class PhoneRemoteServer(
         check(active)
         val bytes = ByteArray(32).also(random::nextBytes)
         val result = bytes.joinToString("") { "%02x".format(it.toInt() and 255) }
-        token = result
-        onToken(result)
+        tokens.add(result)
+        onTokens(tokens.toSet())
         pairDeadline = 0L // Pair once. TV can explicitly issue a new code.
         return result
     }
@@ -121,7 +125,7 @@ class PhoneRemoteServer(
         } finally { synchronized(this) { approvalBusy = false } }
     }
 
-    @Synchronized private fun authenticated(value: String): Boolean = token?.let { constantEquals(value, it) } ?: false
+    @Synchronized private fun authenticated(value: String): Boolean = tokens.any { constantEquals(value, it) }
     private fun constantEquals(a: String, b: String): Boolean = MessageDigest.isEqual(a.toByteArray(), b.toByteArray())
 
     private fun serve(socket: Socket) {
@@ -181,7 +185,7 @@ class PhoneRemoteServer(
 
     override fun close() {
         active = false
-        synchronized(this) { token = null; pairDeadline = 0L }
+        synchronized(this) { tokens.clear(); pairDeadline = 0L }
         listener?.close()
         synchronized(clients) { clients.toList().forEach { it.close() } }
         pool.shutdownNow()

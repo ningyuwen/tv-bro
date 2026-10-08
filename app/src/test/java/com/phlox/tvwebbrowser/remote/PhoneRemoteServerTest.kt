@@ -49,8 +49,8 @@ class PhoneRemoteServerTest {
     }
     @Test fun approvedCredentialSurvivesServerRestart() {
         server.close()
-        var stored: String? = null
-        server = PhoneRemoteServer(onToken = { stored = it }, approve = { true }) { _, valid ->
+        var stored: Set<String> = emptySet()
+        server = PhoneRemoteServer(onTokens = { stored = it }, approve = { true }) { _, valid ->
             require(valid()); JSONObject()
         }
         server.start(0)
@@ -60,18 +60,20 @@ class PhoneRemoteServerTest {
         val authorization = send(socket(), JSONObject().put("id", 1).put("op", "authorize"))
         assertTrue(authorization.getBoolean("ok"))
         val token = authorization.getString("token")
-        assertEquals(token, stored)
+        assertEquals(setOf(token), stored)
         server.close()
-        server = PhoneRemoteServer(initialToken = stored) { _, valid -> require(valid()); JSONObject() }
+        server = PhoneRemoteServer(initialTokens = stored) { _, valid -> require(valid()); JSONObject() }
         server.start(0)
         assertTrue(send(socket(), JSONObject().put("id", 2).put("op", "status").put("token", token)).getBoolean("ok"))
         server.beginPairing()
-        assertFalse(send(socket(), JSONObject().put("id", 3).put("op", "status").put("token", token)).getBoolean("ok"))
+        assertTrue(send(socket(), JSONObject().put("id", 3).put("op", "status").put("token", token)).getBoolean("ok"))
+        server.revokeAll()
+        assertFalse(send(socket(), JSONObject().put("id", 4).put("op", "status").put("token", token)).getBoolean("ok"))
     }
     @Test fun authorizationCanBeRecheckedAfterCommandWasQueued() {
         server.close()
         server = PhoneRemoteServer { _, valid ->
-            server.beginPairing()
+            server.revokeAll()
             require(valid()) { "unauthorized" }
             count.incrementAndGet()
             JSONObject()
@@ -114,11 +116,44 @@ class PhoneRemoteServerTest {
         assertFalse(send(socket, JSONObject().put("id", 3).put("op", "pair").put("code", code)).getBoolean("ok"))
         assertEquals(1, count.get())
     }
-    @Test fun newPairingRevokesOldToken() {
+    @Test fun newPairingKeepsBothPhonesAuthorizedUntilExplicitRevocation() {
         val socket = socket()
         val token = paired(socket)
-        server.beginPairing()
-        assertEquals("unauthorized", send(socket, JSONObject().put("id", 2).put("op", "click").put("token", token)).getString("error"))
+        val otherToken = paired(socket())
+        assertNotEquals(token, otherToken)
+        for (remembered in listOf(token, otherToken)) {
+            assertTrue(send(socket, JSONObject().put("id", 2).put("op", "click").put("token", remembered)).getBoolean("ok"))
+        }
+        server.revokeAll()
+        for (remembered in listOf(token, otherToken)) {
+            assertEquals("unauthorized", send(socket, JSONObject().put("id", 3).put("op", "click").put("token", remembered)).getString("error"))
+        }
+    }
+    @Test fun approvingAnotherPhoneKeepsAllCredentialsAcrossRestarts() {
+        server.close()
+        var stored: Set<String> = emptySet()
+        server = PhoneRemoteServer(now = time::get, onTokens = { stored = it }, approve = { true }) { _, valid ->
+            require(valid()); JSONObject()
+        }
+        server.start(0)
+        val first = send(socket(), JSONObject().put("id", 1).put("op", "authorize")).getString("token")
+        time.addAndGet(TimeUnit.SECONDS.toNanos(31))
+        val second = send(socket(), JSONObject().put("id", 1).put("op", "authorize")).getString("token")
+        assertEquals(setOf(first, second), stored)
+        server.close()
+        assertEquals(setOf(first, second), stored)
+        server = PhoneRemoteServer(initialTokens = stored, onTokens = { stored = it }) { _, valid ->
+            require(valid()); JSONObject()
+        }
+        server.start(0)
+        val reconnected = socket()
+        for (token in listOf(first, second)) {
+            assertTrue(send(reconnected, JSONObject().put("id", 2).put("op", "status").put("token", token)).getBoolean("ok"))
+        }
+        assertEquals("unauthorized", send(reconnected, JSONObject().put("id", 3).put("op", "status")
+            .put("token", "f".repeat(64))).getString("error"))
+        server.revokeAll()
+        assertTrue(stored.isEmpty())
     }
     @Test fun fragmentedChineseAndMultipleFrames() {
         val socket = socket()

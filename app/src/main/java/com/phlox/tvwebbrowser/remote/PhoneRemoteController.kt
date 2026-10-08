@@ -36,8 +36,13 @@ class PhoneRemoteController(
     fun startIfEnabled() {
         if (!prefs.getBoolean("enabled", true) || server != null) return
         try {
-            val running = PhoneRemoteServer(initialToken = prefs.getString("token", null),
-                onToken = { token -> prefs.edit().putString("token", token).apply() },
+            // Keep the existing single-phone credential when upgrading to multiple phones.
+            val remembered = prefs.getStringSet("tokens", null)?.toSet()
+                ?: setOfNotNull(prefs.getString("token", null))
+            val running = PhoneRemoteServer(initialTokens = remembered,
+                onTokens = { tokens ->
+                    prefs.edit().putStringSet("tokens", tokens).remove("token").commit()
+                },
                 approve = ::approvePhone, deviceId = deviceId, execute = ::onCommand).also { it.start() }
             server = running
             try { discovery = RemoteDiscoveryServer(deviceId, running.port).also { it.start() } }
@@ -117,7 +122,8 @@ class PhoneRemoteController(
             dialog = AlertDialog.Builder(activity).setTitle(R.string.phone_remote).setView(content)
                 .setPositiveButton(android.R.string.ok, null)
                 .setNegativeButton(R.string.remote_stop) { _, _ ->
-                    prefs.edit().putBoolean("enabled", false).remove("token").apply(); close()
+                    server?.revokeAll()
+                    prefs.edit().putBoolean("enabled", false).remove("tokens").remove("token").apply(); close()
                 }.show()
         } catch (_: Exception) {
             close()

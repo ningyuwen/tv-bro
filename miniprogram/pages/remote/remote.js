@@ -78,6 +78,8 @@ Page({
       const reply = code ? await this.client.pair(code) : await this.client.request('authorize', {}, 35000)
       if (!/^[a-f0-9]{64}$/.test(reply.token)) throw new Error('授权响应无效')
       this.client.token = reply.token
+      // Approval has already succeeded; keep it even if the next status request disconnects.
+      wx.setStorageSync('lime-session-v1', { host: device.host, port: Number(device.port), deviceId: info.deviceId, token: reply.token })
       await this.client.request('status')
     }
     if (!this.visible || epoch !== this.epoch) throw new Error('连接取消')
