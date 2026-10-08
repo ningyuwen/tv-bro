@@ -200,6 +200,23 @@ class PhoneRemoteSessionTest {
         assertEquals("青柠输入", input.text.toString())
     }
 
+    @Test fun nativePageDialogUsesNavigationAndRestoresPointerAfterConfirmation() {
+        val native = page()
+        val connection = socket()
+        var confirmed = 0
+        val dialog = RemoteUiWindows.alert(native.get()).setMessage("Options")
+            .setPositiveButton("Confirm") { _, _ -> confirmed++ }.show()
+        try {
+            shadowOf(Looper.getMainLooper()).idle()
+            assertEquals("navigation", request(connection, "status").getJSONObject("ui").getString("mode"))
+            assertTrue(request(connection, "click").getBoolean("ok"))
+            shadowOf(Looper.getMainLooper()).idle()
+            assertEquals(1, confirmed)
+            assertEquals(0, native.get().clicks)
+            assertEquals("pointer", request(connection, "status").getJSONObject("ui").getString("mode"))
+        } finally { dialog.dismiss() }
+    }
+
     @Test fun disabledRemoteIsNotRestartedByNavigation() {
         RuntimeEnvironment.getApplication().getSharedPreferences("phone_remote", 0)
             .edit().putBoolean("enabled", false).commit()
