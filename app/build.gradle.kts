@@ -7,7 +7,7 @@ android {
     namespace = "com.phlox.tvwebbrowser"
 
     defaultConfig {
-        applicationId = "cn.ningyuwen.limebrowser"
+        applicationId = "org.limebrowser.tv"
         versionCode = 76
         versionName = "0.1.8"
 

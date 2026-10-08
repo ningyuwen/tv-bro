@@ -2,7 +2,7 @@
 
 面向 Android 电视和机顶盒的浏览器，基于 [TV Bro](https://github.com/truefedex/tv-bro) 开发。支持电视遥控器，也可以通过微信小程序在局域网内用手机控制浏览、输入文字和操作视频。
 
-本分支使用独立名称、图标和包名：`cn.ningyuwen.limebrowser`，FOSS 构建为 `cn.ningyuwen.limebrowser.foss`。所有构建均关闭上游自动更新，避免安装包名和签名不兼容的原版 APK；上游许可与应用内署名保留。
+本分支使用独立名称、图标和包名：`org.limebrowser.tv`，FOSS 构建为 `org.limebrowser.tv.foss`。所有构建均关闭上游自动更新，避免安装包名和签名不兼容的原版 APK；上游许可与应用内署名保留。
 
 ## 功能
 
@@ -46,6 +46,10 @@
 
 准备 Java 21（Gradle 运行时）、Java 17（`buildSrc` 编译工具链）、Android SDK Platform 36 和 Build Tools 36.0.0。在本机 `local.properties` 中配置 `sdk.dir`，首次构建需联网下载依赖。JDK 17 位于非标准路径时，可附加 `-Porg.gradle.java.installations.paths=/path/to/jdk17`。
 
+新 Git 工作树不会复制被忽略的 `.local/` 和 `local.properties`。可以复用原项目已有的 JDK 与 SDK，在当前工作树重新配置 `local.properties`，并在构建终端设置 `JAVA_HOME=/path/to/jdk21`、将 `$JAVA_HOME/bin` 加入 `PATH`。macOS 的 `/usr/bin/java` 可能只是系统启动器，不能仅凭该命令存在判断 JDK 已配置；构建前用 `$JAVA_HOME/bin/java -version` 确认。
+
+`generic`（普通包）、`google` 和 `foss` 是发行渠道选项；当前代码中的功能、依赖和关闭上游自动更新的行为一致，`foss` 额外添加 `.foss` 包名后缀，版本页会显示所选渠道。是否包含 Gecko 内核由独立的 `geckoIncluded` / `geckoExcluded` 选项决定；这些选项与 Release / Debug 构建类型相互独立。
+
 安装、交付和分发默认且必须使用 **Release**，除非用户明确要求 Debug 包。Release 保持 `isDebuggable = false`、`isMinifyEnabled = true` 和 `proguard-android-optimize.txt`，完整要求见 [AGENTS.md](AGENTS.md)。
 
 构建前通过环境变量配置签名：`KEYSTORE_PATH`（建议绝对路径）、`KEYSTORE_PASSWORD`、`KEY_ALIAS`、`KEY_PASSWORD`。未配置 `KEYSTORE_PATH` 时会生成未签名 Release APK，不能直接用于安装或分发。
@@ -65,6 +69,8 @@
 
 安装前确认 APK 为 Release、不可调试且签名正确。覆盖安装必须与设备上已有应用的签名兼容；签名缺失或不兼容时应处理签名问题，不自动退回 Debug，不擅自卸载应用或清除用户数据。
 
+本次包名调整去除了个人姓名。新包按全新应用安装，不迁移旧包的浏览数据、设置或手机授权；手机小程序首次连接新包时需在电视上重新允许。使用新版时先退出或停止旧版，避免两者争用遥控端口。
+
 ## 开发验证
 
 在仓库根目录执行：
@@ -82,6 +88,8 @@ node --test miniprogram/tests/browser/scroll.test.cjs
 ```
 
 ## 当前状态
+
+当前工作区已将包名改为 `org.limebrowser.tv`（FOSS：`org.limebrowser.tv.foss`），不提供旧包数据迁移。更名后的双内核 FOSS Release 0.1.8（76）已完成构建，输出 ARMv7、ARM64、x86_64，R8 优化与必要 lint 检查通过；当前未配置 Release 签名，输出为未签名 APK，仅用于构建验证，尚未安装或交付。下述 0.1.9 交付记录属于更名前的版本。
 
 截至 **2026-10-09**，最新交付版本为 **0.1.9（versionCode 77）**。该版本双内核 ARMv7 Release 已覆盖安装到极光 A4111，签名兼容、不可调试，并保留原数据与手机授权；微信开发者工具于 02:21 确认小程序 0.1.9 上传成功并覆盖现有体验版。
 
