@@ -11,5 +11,7 @@ window.addEventListener('load', function () {
 const communicatePort = browser.runtime.connectNative("tvbro_content");
 
 communicatePort.onMessage.addListener(message => {
-    console.log("Received message from native app:", message);
+    if (message.action === 'remoteScroll' && window === window.top) {
+        limeRemoteScroll(message.x, message.y, message.dx, message.dy, message.gestureId, message.deadline);
+    }
 });

@@ -23,7 +23,7 @@ function page() {
   p.volumeSupported = true
   p.data.connected = true
   p.data.volume = volumeView(current())
-  p.client = { request: async (op, fields) => {
+  p.client = { canRequest: () => true, request: async (op, fields) => {
     calls.push({ op, fields })
     return { volume: current(fields && fields.percent !== undefined ? fields.percent : 40, fields && fields.muted) }
   } }

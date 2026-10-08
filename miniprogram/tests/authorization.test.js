@@ -12,7 +12,7 @@ function page(saved, failStatus = false) {
     require: path => require(path.replace('../../lib/', '../lib/')),
     Page: value => { p = value },
     wx: { setStorageSync: (_, value) => { stored = value }, removeStorageSync: () => { stored = null } },
-    setInterval: () => 1, clearInterval
+    setTimeout: () => 1, clearTimeout
   })
   p.visible = true
   p.epoch = 1

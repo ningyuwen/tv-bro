@@ -25,6 +25,14 @@ interface WebEngine {
     fun zoomOut()
     fun zoomBy(zoomBy: Float)
     fun evaluateJavascript(script: String)
+    /** Scroll a DOM container on the requested axis without triggering site wheel remapping. */
+    fun remoteScroll(dx: Float, dy: Float, gestureId: String? = null) {
+        val view = requireNotNull(getView()) { "not_ready" }
+        val cursor = requireNotNull(getCursorDrawerDelegate()) { "not_ready" }
+        cursor.remoteScroll(dx, dy) { x, y ->
+            evaluateJavascript(RemoteScrollScript.command(view.context, x, y, dx, dy, gestureId))
+        }
+    }
     fun setNetworkAvailable(connected: Boolean)
     fun getView(): View?
     @Throws(Exception::class)

@@ -53,7 +53,7 @@ class GeckoWebEngine(val tab: WebTabState): WebEngine,
     CursorDrawerDelegate.Callback {
     companion object {
         const val ENGINE_NAME = "GeckoView"
-        private const val APP_WEB_EXTENSION_VERSION = 48
+        private const val APP_WEB_EXTENSION_VERSION = 49
         val TAG: String = GeckoWebEngine::class.java.simpleName
         lateinit var runtime: GeckoRuntime
         var appWebExtension = ObservableValue<WebExtension?>(null)
@@ -162,6 +162,7 @@ class GeckoWebEngine(val tab: WebTabState): WebEngine,
     val selectionActionDelegate = MySelectionActionDelegate()
     var appHomeContentScriptPortDelegate: AppHomeContentScriptPortDelegate? = null
     var appContentScriptPortDelegate: AppContentScriptPortDelegate? = null
+    var remoteScrollPort: WebExtension.Port? = null
     var appWebExtensionBackgroundPortDelegate: AppWebExtensionBackgroundPortDelegate? = null
     private lateinit var webExtObserver: (WebExtension?) -> Unit
 
@@ -213,6 +214,7 @@ class GeckoWebEngine(val tab: WebTabState): WebEngine,
 
                 override fun onConnect(port: WebExtension.Port) {
                     Log.d(TAG, "onConnect: $port")
+                    if (port.sender.isTopLevel) remoteScrollPort = port
                     appContentScriptPortDelegate = AppContentScriptPortDelegate(port, this@GeckoWebEngine).also {
                         port.setDelegate(it)
                     }
@@ -337,6 +339,17 @@ class GeckoWebEngine(val tab: WebTabState): WebEngine,
 
     override fun evaluateJavascript(script: String) {
         session.loadUri("javascript:$script")
+    }
+
+    override fun remoteScroll(dx: Float, dy: Float, gestureId: String?) {
+        // The extension executes independently of the website's script-src policy.
+        val port = requireNotNull(remoteScrollPort) { "not_ready" }
+        val cursor = requireNotNull(getCursorDrawerDelegate()) { "not_ready" }
+        cursor.remoteScroll(dx, dy) { x, y ->
+            port.postMessage(JSONObject().put("action", "remoteScroll").put("x", x).put("y", y)
+                .put("dx", dx).put("dy", dy).put("gestureId", gestureId)
+                .put("deadline", System.currentTimeMillis() + 1500))
+        }
     }
 
     override fun setNetworkAvailable(connected: Boolean) {

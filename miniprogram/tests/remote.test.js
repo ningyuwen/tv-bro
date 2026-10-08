@@ -91,3 +91,24 @@ test('UI feedback follows the newest acknowledged command and ignores stale or u
   assert.deepEqual(states, [{ mode: 'navigation', focus: '设置' }])
   remote.close()
 })
+
+test('button bursts reserve a heartbeat slot and report local backpressure without disconnecting', async () => {
+  const { socket, remote } = await client()
+  const waiting = Array.from({ length: 7 }, () => remote.request('click').catch(error => error))
+  await assert.rejects(remote.request('move', { dx: 1, dy: 0 }), error => error.code === 'client_busy')
+  assert.equal(remote.socket, socket)
+  const heartbeat = remote.request('status')
+  deliver(socket, JSON.stringify({ id: socket.last.id, ok: true }) + '\n')
+  await heartbeat
+  assert.equal(remote.pending.size, 7)
+  remote.close()
+  await Promise.all(waiting)
+})
+
+test('a timeout releases its slot and is distinguishable from local backpressure', async () => {
+  const { remote } = await client()
+  await assert.rejects(remote.request('status', {}, 1), error => error.code === 'request_timeout')
+  assert.equal(remote.pending.size, 0)
+  assert.equal(remote.canRequest('status'), true)
+  remote.close()
+})

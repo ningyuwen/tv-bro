@@ -106,7 +106,7 @@ function page() {
   definition.data.connected = true
   definition.mediaPollEpoch = 1
   definition.mediaRevision = 1
-  definition.client = { request: async (op, fields) => { calls.push({ op, fields }); return { media: current() } } }
+  definition.client = { canRequest: () => true, request: async (op, fields) => { calls.push({ op, fields }); return { media: current() } } }
   function current(id = 'a', position = 25) {
     return { available: true, mediaId: id, position, duration: 100, canSeek: true, seekStart: 0, seekEnd: 100, paused: false }
   }

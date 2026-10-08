@@ -5,7 +5,7 @@ import org.json.JSONObject
 /** All fields are validated before they reach the Android main thread. */
 sealed class RemoteCommand {
     data class Move(val dx: Float, val dy: Float) : RemoteCommand()
-    data class Scroll(val dx: Float, val dy: Float) : RemoteCommand()
+    data class Scroll(val dx: Float, val dy: Float, val gestureId: String? = null) : RemoteCommand()
     data class Text(val text: String) : RemoteCommand()
     data class Open(val text: String) : RemoteCommand()
     data class Action(val name: String) : RemoteCommand()
@@ -67,7 +67,12 @@ object RemoteProtocol {
                 RemoteCommand.Media(op, seconds, mediaId)
             }
             "move" -> RemoteCommand.Move(number("dx"), number("dy"))
-            "scroll" -> RemoteCommand.Scroll(number("dx"), number("dy"))
+            "scroll" -> {
+                val gestureId = json.opt("gestureId")
+                require(gestureId == null || gestureId is String &&
+                    gestureId.matches(Regex("[a-zA-Z0-9-]{1,80}"))) { "invalid_coordinate" }
+                RemoteCommand.Scroll(number("dx"), number("dy"), gestureId as? String)
+            }
             "text" -> RemoteCommand.Text(text())
             "open" -> {
                 val value = text().trim()

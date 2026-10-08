@@ -255,7 +255,7 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
                 } else {
                     require(engine != null) { "not_ready" }
                     hideOverlayForPhone()
-                    requireNotNull(engine.getCursorDrawerDelegate()) { "not_ready" }.remoteScroll(command.dx, command.dy)
+                    engine.remoteScroll(command.dx, command.dy, command.gestureId)
                 }
             }
             is RemoteCommand.Open -> {

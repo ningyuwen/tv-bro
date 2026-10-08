@@ -25,6 +25,14 @@ TCP 使用 `wx.createTCPSocket`，TCP 基础库至少 2.18.0；UDP 广播发现�
 node --test miniprogram/tests/*.test.js
 ```
 
+当前工作区增加连接拥塞、心跳超时和重连隔离、滑动合并、双指方向锁及抬指回归测试。网页滚动集成测试使用 Playwright 和 Chromium，单独运行（`CHROME_PATH` 可指定系统 Chrome）：
+
+```sh
+node --test miniprogram/tests/browser/scroll.test.cjs
+```
+
+连接与滚动修复说明见 [PHONE_REMOTE.md](../PHONE_REMOTE.md#连接稳定性和滚动方向修复当前工作区)。需要同时更新电视和小程序；本次代码修复尚未覆盖安装或上传体验版。
+
 当前测试覆盖二维码校验、TCP 拆包粘包与中文 UTF-8、token 传递、断线取消、错误回执。2026-10-07 已在微信开发者工具编译并生成手机预览版，约 18 KB；模拟器通过真实 wx.createTCPSocket 完成盒子配对、心跳与菜单控制。用户随后澄清手机小程序尚未扫码配对；手机真机配对、触控、中文输入和视频播放均待现场确认。仅生成临时预览，尚未正式上传版本、提审或发布。
 
 

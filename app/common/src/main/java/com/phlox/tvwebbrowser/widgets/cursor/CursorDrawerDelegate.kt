@@ -126,8 +126,12 @@ class CursorDrawerDelegate(val context: Context, val surface: View) {
         surface.invalidate()
     }
 
-    fun remoteScroll(dx: Float, dy: Float) {
+    fun remoteScroll(dx: Float, dy: Float, atCursor: ((Float, Float) -> Unit)? = null) {
         endRemoteScroll()
+        if (atCursor != null) {
+            atCursor(cursorPosition.x, cursorPosition.y)
+            return
+        }
         if (customScrollCallback?.onScroll(dx.toInt(), dy.toInt()) == true) return
         // Mouse wheels do not hit the synthetic finger drag bounds used for DPAD edge scrolling.
         val properties = arrayOf(MotionEvent.PointerProperties().apply {

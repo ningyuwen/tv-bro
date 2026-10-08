@@ -15,7 +15,8 @@ class AppContentScriptPortDelegate(val port: WebExtension.Port, val webEngine: G
 
     override fun onDisconnect(port: WebExtension.Port) {
         Log.d(TAG, "onDisconnect")
-        webEngine.appContentScriptPortDelegate = null
+        if (webEngine.appContentScriptPortDelegate === this) webEngine.appContentScriptPortDelegate = null
+        if (webEngine.remoteScrollPort === port) webEngine.remoteScrollPort = null
     }
 
     companion object {

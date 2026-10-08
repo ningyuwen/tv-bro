@@ -24,7 +24,7 @@
     <view class="trackpad {{navigation ? 'navigation-pad' : ''}}" catchtouchstart="touchStart" catchtouchmove="touchMove" catchtouchend="touchEnd" catchtouchcancel="touchCancel">
       <text class="pad-symbol">{{navigation ? '↔' : '＋'}}</text>
       <text class="pad-title">{{navigation ? '界面导航' : '触控板'}}</text>
-      <text class="pad-hint">{{navigation ? '滑动切换选项 · 轻点确定' : '单指移动 · 轻点点击 · 双指滚动'}}</text>
+      <text class="pad-hint">{{navigation ? '滑动切换选项 · 轻点确定' : '单指移动 · 轻点点击 · 双指上下/左右滚动'}}</text>
       <text wx:if="{{navigation && focusedControl}}" class="pad-focus">当前选中：{{focusedControl}}</text>
     </view>
     <view class="remote-tools row">
