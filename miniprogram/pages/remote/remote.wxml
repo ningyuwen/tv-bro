@@ -5,18 +5,18 @@
     <text class="section-title">连接你的电视</text>
     <text class="hint">电视打开青柠浏览器，小程序会自动寻找盒子。首次连接只需在电视上选择「允许并记住」。</text>
     <view wx:for="{{devices}}" wx:key="deviceId" class="device">
-      <button class="device-button" data-index="{{index}}" bindtap="choose" disabled="{{busy}}">
+      <button class="device-button" data-index="{{index}}" bindtap="choose">
         <text class="device-name">{{item.name}}</text>
         <text class="device-host">{{item.host}}</text>
       </button>
     </view>
-    <button class="primary" bindtap="find" loading="{{busy}}" disabled="{{busy}}">{{busy ? '正在连接…' : '重新寻找电视'}}</button>
-    <button class="quiet" bindtap="scan" disabled="{{busy}}">扫码配对（备用）</button>
+    <button class="primary" bindtap="find" loading="{{busy && connectionAction === 'find'}}">{{busy && connectionAction === 'find' ? '正在寻找…' : '重新寻找电视'}}</button>
+    <button class="quiet" bindtap="scan">扫码配对（备用）</button>
     <button class="quiet" bindtap="toggleManual">{{manual ? '收起' : '手动输入地址'}}</button>
     <view wx:if="{{manual}}" class="manual">
       <input placeholder="盒子地址，例如 192.168.2.130" value="{{host}}" data-field="host" bindinput="field" />
       <view class="row"><input type="number" placeholder="端口" value="{{port}}" data-field="port" bindinput="field" /><input type="number" maxlength="6" placeholder="配对码（可不填）" value="{{code}}" data-field="code" bindinput="field" /></view>
-      <button class="primary" loading="{{busy}}" disabled="{{busy}}" bindtap="connect">连接</button>
+      <button class="primary" loading="{{busy && connectionAction === 'connect'}}" bindtap="connect">连接</button>
     </view>
     <text class="footnote">手机与盒子连接同一 Wi-Fi，无需电脑常驻。</text>
   </view>
@@ -50,14 +50,14 @@
     <view class="card media-card">
       <text class="section-title">视频进度</text>
       <view class="media-time"><text>{{media.currentLabel}}</text><text>{{media.durationLabel}}</text></view>
-      <slider min="0" max="1000" step="1" value="{{media.slider}}" disabled="{{!media.canSeek || mediaBusy || media.quality.switching}}"
+      <slider min="0" max="1000" step="1" value="{{media.slider}}" disabled="{{!media.canSeek}}"
         activeColor="#52962c" backgroundColor="#e2e8df" block-size="24"
         bindtouchstart="seekStart" bindtouchend="seekEnd" bindchanging="seekChanging" bindchange="seekChange" bindtouchcancel="seekCancel" />
       <view class="row media-buttons">
-        <!-- mediaCommand guards pending requests without flashing all three buttons. -->
-        <button data-seconds="-10" bindtap="skipMedia" disabled="{{!media.canSeek || media.quality.switching}}">后退 10 秒</button>
-        <button bindtap="toggleMedia" disabled="{{!media.available || media.quality.switching}}">{{media.paused ? '播放' : '暂停'}}</button>
-        <button data-seconds="10" bindtap="skipMedia" disabled="{{!media.canSeek || media.quality.switching}}">快进 10 秒</button>
+        <!-- Handlers guard pending requests and quality switches; only capability affects appearance. -->
+        <button data-seconds="-10" bindtap="skipMedia" disabled="{{!media.canSeek}}">后退 10 秒</button>
+        <button bindtap="toggleMedia" disabled="{{!media.available}}">{{media.paused ? '播放' : '暂停'}}</button>
+        <button data-seconds="10" bindtap="skipMedia" disabled="{{!media.canSeek}}">快进 10 秒</button>
       </view>
       <text class="footnote">{{media.hint}}</text>
       <view wx:if="{{media.available}}" class="quality-panel">
@@ -65,23 +65,22 @@
           <view class="quality-status"><text>清晰度 · {{media.quality.currentLabel}}</text>
             <text wx:if="{{media.quality.supported}}" class="quality-target">已选：{{media.quality.selectedLabel}}</text>
           </view>
-          <button wx:if="{{media.quality.supported}}" class="quality-toggle" bindtap="chooseQuality"
-            disabled="{{mediaBusy || media.quality.switching}}">{{qualityChoices.length ? '收起' : '选择清晰度'}}</button>
+          <button wx:if="{{media.quality.supported}}" class="quality-toggle" bindtap="chooseQuality">{{qualityChoices.length ? '收起' : '选择清晰度'}}</button>
         </view>
         <view wx:if="{{qualityChoices.length}}" class="quality-options">
           <button wx:for="{{qualityChoices}}" wx:key="id" data-id="{{item.id}}" data-media-id="{{item.mediaId}}"
             class="quality-option {{item.id === media.quality.selectedId ? 'quality-selected' : ''}}"
-            bindtap="setQuality" disabled="{{mediaBusy || media.quality.switching}}">{{item.label}}</button>
+            bindtap="setQuality">{{item.label}}</button>
         </view>
         <text class="footnote">{{media.quality.hint}}</text>
       </view>
     </view>
     <view class="card volume-card">
       <view class="volume-heading"><text class="section-title">机顶盒音量</text><text class="volume-value">{{volume.ready ? volume.percent + '%' : '—'}}</text></view>
-      <slider min="0" max="100" step="1" value="{{volume.percent}}" disabled="{{!volume.supported || volumeBusy}}"
+      <slider min="0" max="100" step="1" value="{{volume.percent}}" disabled="{{!volume.supported}}"
         activeColor="#52962c" backgroundColor="#e2e8df" block-size="24"
         bindtouchstart="volumeStart" bindtouchend="volumeEnd" bindchanging="volumeChanging" bindchange="volumeChange" bindtouchcancel="volumeCancel" />
-      <view class="volume-mute"><text>静音</text><switch color="#52962c" checked="{{volume.muted}}" disabled="{{!volume.supported || volumeBusy}}" bindchange="muteChange" /></view>
+      <view class="volume-mute"><text>静音</text><switch color="#52962c" checked="{{volume.muted}}" disabled="{{!volume.supported}}" bindchange="muteChange" /></view>
       <text class="footnote">{{volume.hint}}</text>
     </view>
     <view class="card input-card"><text class="section-title">手机输入</text>
@@ -92,7 +91,7 @@
     <view class="card websites-card">
       <view class="websites-heading"><text class="section-title">常用网站</text><text class="websites-caption">点一下，在电视打开</text></view>
       <view class="websites-grid">
-        <button wx:for="{{websites}}" wx:key="id" class="website" data-id="{{item.id}}" bindtap="openWebsite" disabled="{{!!openingWebsite}}" hover-class="website-pressed">
+        <button wx:for="{{websites}}" wx:key="id" class="website" data-id="{{item.id}}" bindtap="openWebsite" hover-class="website-pressed">
           <text class="website-badge" style="background: {{item.color}};">{{item.badge}}</text>
           <text class="website-name">{{openingWebsite === item.id ? '正在打开…' : item.name}}</text>
         </button>

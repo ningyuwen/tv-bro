@@ -366,8 +366,8 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
 
         vb.vActionBar.callback = this
 
+        // Buttons own their touch feedback; only explicit actions close the menu.
         vb.llBottomPanel.childs.forEach {
-            it.setOnTouchListener(bottomButtonsOnTouchListener)
             it.setOnKeyListener(bottomButtonsKeyListener)
         }
 
@@ -516,20 +516,6 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
             }
         }, currentPageTitle, currentPageUrl).show()
         hideMenuOverlay()
-    }
-
-    private val bottomButtonsOnTouchListener = View.OnTouchListener{ v, e ->
-        when (e.action) {
-            MotionEvent.ACTION_DOWN -> {
-                return@OnTouchListener true
-            }
-            MotionEvent.ACTION_UP -> {
-                hideMenuOverlay(false)
-                v.performClick()
-                return@OnTouchListener true
-            }
-            else -> return@OnTouchListener false
-        }
     }
 
     private val bottomButtonsKeyListener = View.OnKeyListener { view, i, keyEvent ->

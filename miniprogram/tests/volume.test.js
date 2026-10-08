@@ -150,3 +150,32 @@ test('old browsers show an update hint without sending unsupported commands', as
   assert.match(p.data.volume.hint, /更新/)
   assert.equal(calls.length, 0)
 })
+
+test('pending volume requests reject competing gestures and restore native control values', async () => {
+  const { p, calls, current } = page()
+  const patches = [], setData = p.setData
+  p.setData = values => { patches.push(values); setData(values) }
+  let finish
+  p.client.request = op => { calls.push(op); return new Promise(resolve => { finish = resolve }) }
+  const pending = p.muteChange({ detail: { value: true } })
+  p.volumeStart(); p.volumeChanging({ detail: { value: 90 } })
+  await p.volumeChange({ detail: { value: 90 } })
+  await p.muteChange({ detail: { value: false } })
+  assert.deepEqual(calls, ['setMuted'])
+  assert.equal(p.data.volume.percent, 40)
+  assert.equal(patches.some(value => value['volume.percent'] === 40), true)
+  assert.equal(patches.some(value => value['volume.muted'] === false), true)
+  finish({ volume: current(40, true) }); await pending
+  assert.equal(p.data.volume.muted, true)
+  assert.equal(p.data.volumeBusy, false)
+})
+
+test('transient volume errors keep the last known hardware capabilities and value', async () => {
+  const { p } = page()
+  p.client.request = async () => { throw Error('超时') }
+  await p.muteChange({ detail: { value: true } })
+  assert.equal(p.data.volume.supported, true)
+  assert.equal(p.data.volume.percent, 40)
+  assert.equal(p.data.volume.muted, false)
+  assert.match(p.data.volume.hint, /重新读取/)
+})

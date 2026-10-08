@@ -8,7 +8,7 @@ const websites = [
   { id: 'netflix', name: 'Netflix', badge: 'N', color: '#c8202b', url: 'https://www.netflix.com/' }
 ]
 Page({
-  data: { connected: false, busy: false, status: '正在寻找电视…', host: '', port: '8877', code: '', text: '', manual: false, devices: [],
+  data: { connected: false, busy: false, connectionAction: '', status: '正在寻找电视…', host: '', port: '8877', code: '', text: '', manual: false, devices: [],
     navigation: false, focusedControl: '', showDirections: false, navigationSupported: false, media: emptyMedia(), mediaBusy: false, qualityChoices: [], fullscreenBusy: false, volume: emptyVolume(), volumeBusy: false, websites, openingWebsite: '' },
   onLoad() {
     this.epoch = 0
@@ -30,10 +30,10 @@ Page({
   field(event) { this.setData({ [event.currentTarget.dataset.field]: event.detail.value }) },
   toggleManual() { this.setData({ manual: !this.data.manual }) },
   async find() {
-    if (!this.visible || this.data.busy || this.data.connected) return
+    if (!this.visible || this.scanning || this.data.busy || this.data.connected) return
     clearTimeout(this.retry)
     const epoch = ++this.epoch
-    this.setData({ busy: true, devices: [], status: '正在寻找电视…' })
+    this.setData({ busy: true, connectionAction: 'find', devices: [], status: '正在寻找电视…' })
     const saved = readSession(wx)
     if (saved) {
       try {
@@ -50,12 +50,12 @@ Page({
     this.setData({ status: devices.length ? '发现多台电视，请选择' : '未找到电视，请打开电视上的青柠浏览器' })
   },
   async choose(value) {
-    if (this.data.busy) return
+    if (this.data.busy || this.scanning) return
     const device = value.currentTarget ? this.data.devices[value.currentTarget.dataset.index] : value
     if (!device) return
     const epoch = ++this.epoch
     const saved = readSession(wx)
-    this.setData({ busy: true, status: '正在连接电视…' })
+    this.setData({ busy: true, connectionAction: 'device', status: '正在连接电视…' })
     try { await this.attach(device, saved && saved.deviceId === device.deviceId ? saved : null, epoch) }
     catch (error) { if (epoch === this.epoch) { this.client.close(); if (this.visible) this.error(error) } }
     finally { if (epoch === this.epoch) this.setData({ busy: false }) }
@@ -97,20 +97,24 @@ Page({
     this.startVolumePolling()
   },
   scan() {
+    if (this.data.busy || this.scanning) return
+    this.scanning = true
     this.discovery.stop()
     wx.scanCode({ scanType: ['qrCode'], success: result => {
+      this.scanning = false
       try {
         const info = parsePairing(result.result)
         this.setData({ host: info.host, port: String(info.port), code: info.code })
         this.connect()
       } catch (error) { this.error(error) }
-    }, fail: error => { if (!/cancel/.test(error.errMsg)) this.error(new Error('无法扫码，请使用手动配对')) } })
+    }, fail: error => { if (!/cancel/.test(error.errMsg)) this.error(new Error('无法扫码，请使用手动配对')) },
+    complete: () => { this.scanning = false } })
   },
   async connect() {
-    if (this.data.busy) return
+    if (this.data.busy || this.scanning) return
     if (this.data.code && !/^\d{6}$/.test(this.data.code)) return this.error(new Error('请输入电视上的六位配对码'))
     const epoch = ++this.epoch
-    this.setData({ busy: true, status: '正在连接…' })
+    this.setData({ busy: true, connectionAction: 'connect', status: '正在连接…' })
     try { await this.attach({ host: this.data.host.trim(), port: this.data.port }, null, epoch, 6000, this.data.code || null) }
     catch (error) { if (epoch === this.epoch) { this.client.close(); if (this.visible) this.error(error) } }
     finally { if (epoch === this.epoch) this.setData({ busy: false }) }
@@ -210,7 +214,7 @@ Page({
         } catch (error) {
           if (epoch === this.mediaPollEpoch && revision === this.mediaRevision) {
             this.seekSnapshot = null
-            this.setData({ media: emptyMedia(error.message), qualityChoices: [] })
+            this.setData({ 'media.hint': error.message })
           }
         }
       }
@@ -245,13 +249,17 @@ Page({
     this.seekSnapshot = null
     const epoch = this.mediaPollEpoch
     this.mediaRevision++
-    this.setData({ mediaBusy: true, qualityChoices: [] })
+    this.setData(op === 'setQuality' ? { mediaBusy: true, qualityChoices: [] } : { mediaBusy: true })
     try {
       const reply = await this.client.request(op, Object.assign({}, fields, { mediaId }))
       if (epoch === this.mediaPollEpoch) this.updateMedia(reply.media)
     } catch (error) {
       if (epoch === this.mediaPollEpoch) {
-        this.setData({ media: emptyMedia('正在重新读取视频状态…') })
+        if (error.code === 'media_changed') {
+          this.setData({ media: emptyMedia('正在重新读取视频状态…'), qualityChoices: [] })
+        } else {
+          this.setData({ 'media.hint': '正在重新读取视频状态…' })
+        }
         wx.showToast({ title: error.message, icon: 'none' })
       }
     } finally { if (epoch === this.mediaPollEpoch) this.setData({ mediaBusy: false }) }
@@ -271,6 +279,7 @@ Page({
       media.quality.options.map(option => Object.assign({}, option, { mediaId: media.mediaId })) })
   },
   setQuality(event) {
+    if (this.data.mediaBusy || this.data.media.quality.switching) return
     const { id, mediaId } = event.currentTarget.dataset
     if (mediaId !== this.data.media.mediaId || !this.data.qualityChoices.some(choice => choice.id === id && choice.mediaId === mediaId)) return
     return this.mediaCommand('setQuality', { qualityId: id }, mediaId)
@@ -293,7 +302,10 @@ Page({
     clearTimeout(this.seekReleaseTimer)
     const snapshot = this.seekSnapshot
     this.seekSnapshot = null
-    if (!snapshot || snapshot.mediaId !== this.data.media.mediaId) return
+    if (!snapshot || snapshot.mediaId !== this.data.media.mediaId || this.data.mediaBusy || this.data.media.quality.switching) {
+      this.setData({ 'media.slider': this.data.media.slider })
+      return
+    }
     return this.mediaCommand('seekTo', { seconds: sliderTarget(event.detail.value, snapshot) }, snapshot.mediaId)
   },
   seekCancel() { clearTimeout(this.seekReleaseTimer); this.seekSnapshot = null },
@@ -315,7 +327,7 @@ Page({
           }
         } catch (error) {
           if (epoch === this.volumePollEpoch && revision === this.volumeRevision && !this.volumeDrag) {
-            this.setData({ volume: emptyVolume(error.message) })
+            this.setData({ 'volume.hint': error.message })
           }
         }
       }
@@ -342,7 +354,7 @@ Page({
       if (epoch === this.volumePollEpoch) this.setData({ volume: volumeView(reply.volume) })
     } catch (error) {
       if (epoch === this.volumePollEpoch) {
-        this.setData({ volume: emptyVolume('正在重新读取盒子音量…') })
+        this.setData({ 'volume.hint': '正在重新读取盒子音量…' })
         wx.showToast({ title: error.message, icon: 'none' })
       }
     } finally { if (epoch === this.volumePollEpoch) this.setData({ volumeBusy: false }) }
@@ -362,7 +374,10 @@ Page({
   volumeChange(event) {
     const drag = this.volumeDrag
     this.volumeCancel()
-    if (!drag || drag.epoch !== this.volumePollEpoch) return
+    if (!drag || drag.epoch !== this.volumePollEpoch || this.data.volumeBusy) {
+      this.setData({ 'volume.percent': this.data.volume.percent })
+      return
+    }
     return this.volumeCommand('setVolume', { percent: event.detail.value })
   },
   volumeCancel() {
@@ -370,7 +385,13 @@ Page({
     if (this.volumeDrag) this.setData({ volume: this.volumeDrag.volume })
     this.volumeDrag = null
   },
-  muteChange(event) { return this.volumeCommand('setMuted', { muted: event.detail.value }) },
+  muteChange(event) {
+    if (!this.data.connected || !this.data.volume.supported || this.data.volumeBusy) {
+      this.setData({ 'volume.muted': this.data.volume.muted })
+      return
+    }
+    return this.volumeCommand('setMuted', { muted: event.detail.value })
+  },
   async send(event) {
     if (!this.data.text.trim()) return
     try { await this.client.request(event.currentTarget.dataset.op, { text: this.data.text }) }
