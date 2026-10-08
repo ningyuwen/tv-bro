@@ -33,15 +33,30 @@
     <view class="card media-card">
       <text class="section-title">视频进度</text>
       <view class="media-time"><text>{{media.currentLabel}}</text><text>{{media.durationLabel}}</text></view>
-      <slider min="0" max="1000" step="1" value="{{media.slider}}" disabled="{{!media.canSeek || mediaBusy}}"
+      <slider min="0" max="1000" step="1" value="{{media.slider}}" disabled="{{!media.canSeek || mediaBusy || media.quality.switching}}"
         activeColor="#52962c" backgroundColor="#e2e8df" block-size="24"
         bindtouchstart="seekStart" bindtouchend="seekEnd" bindchanging="seekChanging" bindchange="seekChange" bindtouchcancel="seekCancel" />
       <view class="row media-buttons">
-        <button data-seconds="-10" bindtap="skipMedia" disabled="{{!media.canSeek || mediaBusy}}">后退 10 秒</button>
-        <button bindtap="toggleMedia" disabled="{{!media.available || mediaBusy}}">{{media.paused ? '播放' : '暂停'}}</button>
-        <button data-seconds="10" bindtap="skipMedia" disabled="{{!media.canSeek || mediaBusy}}">快进 10 秒</button>
+        <button data-seconds="-10" bindtap="skipMedia" disabled="{{!media.canSeek || mediaBusy || media.quality.switching}}">后退 10 秒</button>
+        <button bindtap="toggleMedia" disabled="{{!media.available || mediaBusy || media.quality.switching}}">{{media.paused ? '播放' : '暂停'}}</button>
+        <button data-seconds="10" bindtap="skipMedia" disabled="{{!media.canSeek || mediaBusy || media.quality.switching}}">快进 10 秒</button>
       </view>
       <text class="footnote">{{media.hint}}</text>
+      <view wx:if="{{media.available}}" class="quality-panel">
+        <view class="quality-heading">
+          <view class="quality-status"><text>清晰度 · {{media.quality.currentLabel}}</text>
+            <text wx:if="{{media.quality.supported}}" class="quality-target">已选：{{media.quality.selectedLabel}}</text>
+          </view>
+          <button wx:if="{{media.quality.supported}}" class="quality-toggle" bindtap="chooseQuality"
+            disabled="{{mediaBusy || media.quality.switching}}">{{qualityChoices.length ? '收起' : '选择清晰度'}}</button>
+        </view>
+        <view wx:if="{{qualityChoices.length}}" class="quality-options">
+          <button wx:for="{{qualityChoices}}" wx:key="id" data-id="{{item.id}}" data-media-id="{{item.mediaId}}"
+            class="quality-option {{item.id === media.quality.selectedId ? 'quality-selected' : ''}}"
+            bindtap="setQuality" disabled="{{mediaBusy || media.quality.switching}}">{{item.label}}</button>
+        </view>
+        <text class="footnote">{{media.quality.hint}}</text>
+      </view>
     </view>
     <view class="card volume-card">
       <view class="volume-heading"><text class="section-title">机顶盒音量</text><text class="volume-value">{{volume.ready ? volume.percent + '%' : '—'}}</text></view>

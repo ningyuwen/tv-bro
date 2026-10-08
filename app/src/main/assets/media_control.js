@@ -1,5 +1,5 @@
 // Evaluated on demand in the current tab, including incognito. State stays in memory.
-(function(action, seconds, expectedId, deadline) {
+(function(action, seconds, expectedId, deadline, qualityId, qualityControl) {
     if (Date.now() > deadline) return { error: 'not_ready' };
     var state = window.__limeMediaState;
     if (!state) state = window.__limeMediaState = {
@@ -47,6 +47,15 @@
             state.identities.set(media, identity);
         }
         if (action !== 'mediaStatus' && expectedId !== identity.id) return { error: 'media_changed' };
+        var quality = { supported: false };
+        if (qualityControl) {
+            try { quality = qualityControl(media, action, qualityId, state); }
+            catch (_) {
+                if (action === 'setQuality') return { error: 'quality_failed' };
+            }
+        }
+        if (quality.error && action === 'setQuality') return { error: quality.error };
+        if (action === 'setQuality' && !quality.supported) return { error: 'quality_unsupported' };
         var duration = Number.isFinite(media.duration) && media.duration > 0 ? media.duration : null;
         var ranges = [];
         if (duration !== null) for (var i = 0; i < media.seekable.length; i++) {
@@ -54,6 +63,7 @@
             var end = Math.min(duration, media.seekable.end(i));
             if (Number.isFinite(start) && Number.isFinite(end) && end > start) ranges.push({ start: start, end: end });
         }
+        if (quality.switching && action !== 'mediaStatus' && action !== 'setQuality') return { error: 'quality_busy' };
         if (action === 'seekBy' || action === 'seekTo') {
             if (!ranges.length) return { error: 'media_not_seekable' };
             var target = action === 'seekBy' ? media.currentTime + seconds : seconds;
@@ -71,11 +81,11 @@
                 var play = media.play();
                 if (play && play.catch) play.catch(function() {});
             }
-        } else if (action !== 'mediaStatus') return { error: 'media_unsupported' };
+        } else if (action !== 'mediaStatus' && action !== 'setQuality') return { error: 'media_unsupported' };
         return { available: true, mediaId: identity.id, paused: media.paused || media.ended,
             position: Number.isFinite(media.currentTime) ? Math.max(0, media.currentTime) : 0,
             duration: duration, canSeek: ranges.length > 0,
             seekStart: ranges.length ? ranges[0].start : 0,
-            seekEnd: ranges.length ? ranges[ranges.length - 1].end : 0 };
+            seekEnd: ranges.length ? ranges[ranges.length - 1].end : 0, quality: quality };
     } catch (_) { return { error: 'media_failed' }; }
 })

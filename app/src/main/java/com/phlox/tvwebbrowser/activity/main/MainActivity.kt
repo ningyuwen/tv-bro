@@ -175,7 +175,7 @@ open class MainActivity : AppCompatActivity(), ActionBar.Callback {
         } else if (command is RemoteCommand.Media) {
             val engine = tabsModel.currentTab.value?.webEngine
                 ?: throw IllegalArgumentException("not_ready")
-            engine.controlMedia(command.action, command.seconds, command.mediaId) { response ->
+            engine.controlMedia(command.action, command.seconds, command.mediaId, command.qualityId) { response ->
                 complete(response.mapCatching { media ->
                     require(tabsModel.currentTab.value?.webEngine === engine) { "media_changed" }
                     JSONObject().put("media", media)

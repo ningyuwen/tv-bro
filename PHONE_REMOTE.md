@@ -43,6 +43,8 @@ UTF-8 JSON，每行一条，TCP 拆包在接收端缓冲至换行。每条请求
 - `click`、`back`、`forward`、`refresh`、`home`、`menu`、`playPause`、`nextTab`、`newTab`、`closeTab`、`up`、`down`、`left`、`right`、`ok`、`status`。
 - 视频进度扩展：`info` 返回 `mediaControl: 1`；`mediaStatus` 返回当前标签的 `media` 状态（`available`、`mediaId`、`paused`、`position`、`duration`、`canSeek`、`seekStart`、`seekEnd`，时间均为秒）。未检测到媒体时只返回 `available: false`。
 - `seekBy`：`seconds` 为 -600 到 600 的有限数字，小程序按钮使用 -10 / 10；`seekTo`：`seconds` 为 0 到 31536000 的有限数字；`mediaToggle`：播放/暂停。三种操作均须传最近状态中的 `mediaId`，视频或标签变化后旧标识失效。跳转会限制在实际可定位范围内。
+- 清晰度扩展：`info` 返回 `qualityControl: 1`；`mediaStatus` 的 `media.quality` 返回 `supported`、`options`（`id`、`label`）、`selectedId`、`currentHeight`、`switching` 和 `failed`。未支持的播放器不返回选项，Gecko 返回 `reason: engine_unsupported`。`currentHeight` 是实际解码视频的高度，0 表示尚未知，可能暂时与选中的档位不同。
+- `setQuality`：携带最近状态的 `mediaId` 与选项的 `qualityId`，均为最长 128 字符的标识；`qualityId` 仅允许字母、数字和连字符。选项绑定当前播放器和清晰度列表，视频、标签或列表变化后旧指令返回 `media_changed` / `quality_changed`；不支持时返回 `quality_unsupported`。视频 URL 和播放器内部标识只留在网页内存中，不通过协议返回。
 - 全屏扩展：`info` 返回 `fullscreenControl: 1`；已授权手机发送 `toggleFullscreen`，成功返回 `fullscreen` 布尔值。WebView 中优先选择可见且正在播放的视频，已全屏时通过原生接口退出。进入全屏通过一次原生按键提供网页所需的用户操作，不会重复执行超时请求。Gecko 内核暂返回 `fullscreen_unsupported`。
 - 机顶盒音量扩展：`info` 返回 `volumeControl: 1`；授权后的 `volumeStatus`、`setVolume`（`percent` 为 0–100 的整数）、`setMuted`（`muted` 为布尔值）均返回 `volume: { supported, percent, muted }`。控制系统媒体音量，独立于网页、WebView/Gecko 内核；返回值按盒子的实际音量档位折算。固定音量设备返回 `supported: false`，修改请求返回 `volume_unsupported`；系统拒绝修改返回 `volume_denied`。
 
@@ -69,6 +71,16 @@ WebView 在当前页面中优先选择全屏、可见、正在播放的媒体，
 普通和隐私模式使用相同接口。状态只回传随机媒体标识、时间和播放状态，不包含网页标题、视频地址，也不新增播放记录存储。切换隐私模式会切换进程，小程序需要重新连接。
 
 开发验证：双内核 FOSS Debug APK 构建成功，14 项服务端测试通过；JavaScript 28 项测试通过，覆盖跳转边界、范围间隙、直播/未加载状态、播放器选择、过期媒体标识、拖动及断线/异步回执竞争。微信开发者工具已成功编译并显示新面板，旧浏览器更新提示已验证。后续安装与真机验收结果见本节开头，手机端拖动手感及各视频网站兼容性待实际使用确认。
+
+## 视频清晰度 0.1.6
+
+小程序在「视频进度」面板内显示当前分辨率、选中的清晰度和「选择清晰度」入口。列表只展示实际检测到的选项；HLS.js 和 Video.js 提供「自动」，直连 MP4/WebM 来源只提供明确标注的档位。播放位置与选中档位分别更新，不将请求成功当成实际画质已切换。旧电视版本显示更新提示；未识别的网页播放器显示不支持提示。
+
+首版基于 WebView 的通用适配：HLS.js 实例需通过当前媒体的 `hls` / `_hls` 或所在窗口的 `hls` 暴露，且实例的 `media` 必须匹配当前媒体；Video.js 通过所在窗口的 `videojs.getPlayers()` 与 `qualityLevels()` 插件读取清晰度；直连来源需为当前 video 的 `<source>`，具有 `data-res` / `res` / `size` / `label` 数字分辨率（如 `720` 或 `720p`）、可播放的 `video/mp4` / `video/webm` 类型和 HTTP(S) 地址，且当前来源属于该列表。仅有格式/编码备选、未标注来源、MSE/blob 视频及 DRM 视频不使用直连换源方式。没有扫描网页任意对象，也没有为 YouTube、Bilibili、Netflix 添加专用适配，不承诺这些网站能被通用方式识别。
+
+直连换源会在新来源 `loadedmetadata` 后恢复原位置和播放/暂停状态；切换中禁用面板内的进度与播放操作，最长等待 15 秒，错误、超时、来源变化或视频被移除时取消恢复。播放器接口换档交给原播放器处理。清晰度选项与旧菜单在切换视频、选项列表变化或断线时失效，指令不自动重放。状态仍只在内存中维护，普通/隐私 WebView 共用实现。Gecko 媒体会话暂未接入清晰度接口。
+
+开发验证：61 项 JavaScript 测试通过；Android 单元测试 25 项通过、1 项上游原有跳过（含 18 项协议/服务端、4 项音量、3 项上游工具测试）。双内核 FOSS Release 0.1.6（versionCode 74）及 ARMv7、ARM64、x86_64 APK 构建成功，R8 优化与必要 lint 检查通过；微信开发者工具内置 WXML/WXSS 编译器编译通过，编译后模板渲染验证了清晰度选项、选中样式及媒体标识绑定。真实 Chrome + HLS.js 验证 1080P → 480P → 720P 及恢复自动档，实际分辨率改变且进度继续前进；真实 Video.js 验证手动限制到 288P，缓冲片段播放完后实际分辨率为 288P。具体视频网站仍需实际使用验证；电视安装与体验版上传结果另行记录。
 
 ## 2026-10-07 验证记录
 

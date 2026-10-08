@@ -422,8 +422,12 @@ class GeckoWebEngine(val tab: WebTabState): WebEngine,
         }
     }
 
-    override fun controlMedia(action: String, seconds: Double?, mediaId: String?, callback: (Result<JSONObject>) -> Unit) {
-        callback(runCatching { mediaSessionDelegate.control(action, seconds, mediaId) })
+    override fun controlMedia(action: String, seconds: Double?, mediaId: String?, qualityId: String?, callback: (Result<JSONObject>) -> Unit) {
+        callback(runCatching {
+            require(action != "setQuality") { "quality_unsupported" }
+            mediaSessionDelegate.control(action, seconds, mediaId).put("quality", JSONObject()
+                .put("supported", false).put("reason", "engine_unsupported"))
+        })
     }
 
     override fun stopPlayback() {

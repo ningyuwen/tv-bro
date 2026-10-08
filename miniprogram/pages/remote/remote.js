@@ -9,7 +9,7 @@ const websites = [
 ]
 Page({
   data: { connected: false, busy: false, status: '正在寻找电视…', host: '', port: '8877', code: '', text: '', manual: false, devices: [],
-    media: emptyMedia(), mediaBusy: false, fullscreenBusy: false, volume: emptyVolume(), volumeBusy: false, websites, openingWebsite: '' },
+    media: emptyMedia(), mediaBusy: false, qualityChoices: [], fullscreenBusy: false, volume: emptyVolume(), volumeBusy: false, websites, openingWebsite: '' },
   onLoad() {
     this.epoch = 0
     this.discovery = new Discovery(wx)
@@ -65,6 +65,7 @@ Page({
     this.mediaSupported = info.mediaControl === 1
     this.fullscreenSupported = info.fullscreenControl === 1
     this.volumeSupported = info.volumeControl === 1
+    this.qualitySupported = info.qualityControl === 1
     if (device.deviceId && info.deviceId !== device.deviceId) throw new Error('盒子地址已变化，正在重新查找')
     if (!/^[a-f0-9-]{36}$/.test(info.deviceId)) throw new Error('电视版本过旧，请更新青柠浏览器')
     if (!this.visible || epoch !== this.epoch) throw new Error('连接取消')
@@ -169,7 +170,7 @@ Page({
         } catch (error) {
           if (epoch === this.mediaPollEpoch && revision === this.mediaRevision) {
             this.seekSnapshot = null
-            this.setData({ media: emptyMedia(error.message) })
+            this.setData({ media: emptyMedia(error.message), qualityChoices: [] })
           }
         }
       }
@@ -183,10 +184,16 @@ Page({
     this.mediaPollEpoch = (this.mediaPollEpoch || 0) + 1
     this.mediaRevision = (this.mediaRevision || 0) + 1
     this.seekSnapshot = null
-    this.setData({ media: emptyMedia(), mediaBusy: false })
+    this.setData({ media: emptyMedia(), mediaBusy: false, qualityChoices: [] })
   },
   updateMedia(value) {
     const media = mediaView(value)
+    if (this.qualitySupported === false && media.available) media.quality.hint = '请更新电视浏览器以使用清晰度切换'
+    const choices = this.data.qualityChoices
+    if (choices.length && (choices[0].mediaId !== media.mediaId || !media.quality.supported ||
+        choices.map(choice => choice.id).join(',') !== media.quality.options.map(option => option.id).join(','))) {
+      this.setData({ qualityChoices: [] })
+    }
     if (this.seekSnapshot) {
       if (media.mediaId === this.seekSnapshot.mediaId && media.canSeek) return
       this.seekSnapshot = null
@@ -198,7 +205,7 @@ Page({
     this.seekSnapshot = null
     const epoch = this.mediaPollEpoch
     this.mediaRevision++
-    this.setData({ mediaBusy: true })
+    this.setData({ mediaBusy: true, qualityChoices: [] })
     try {
       const reply = await this.client.request(op, Object.assign({}, fields, { mediaId }))
       if (epoch === this.mediaPollEpoch) this.updateMedia(reply.media)
@@ -210,13 +217,27 @@ Page({
     } finally { if (epoch === this.mediaPollEpoch) this.setData({ mediaBusy: false }) }
   },
   skipMedia(event) {
-    if (!this.data.media.canSeek) return
+    if (!this.data.media.canSeek || this.data.media.quality.switching) return
     return this.mediaCommand('seekBy', { seconds: Number(event.currentTarget.dataset.seconds) }, this.data.media.mediaId)
   },
-  toggleMedia() { return this.mediaCommand('mediaToggle', {}, this.data.media.mediaId) },
+  toggleMedia() {
+    if (!this.data.media.quality.switching) return this.mediaCommand('mediaToggle', {}, this.data.media.mediaId)
+  },
+  chooseQuality() {
+    const media = this.data.media
+    if (this.data.mediaBusy || media.quality.switching || !media.quality.supported) return
+    this.seekCancel()
+    this.setData({ qualityChoices: this.data.qualityChoices.length ? [] :
+      media.quality.options.map(option => Object.assign({}, option, { mediaId: media.mediaId })) })
+  },
+  setQuality(event) {
+    const { id, mediaId } = event.currentTarget.dataset
+    if (mediaId !== this.data.media.mediaId || !this.data.qualityChoices.some(choice => choice.id === id && choice.mediaId === mediaId)) return
+    return this.mediaCommand('setQuality', { qualityId: id }, mediaId)
+  },
   seekStart() {
     clearTimeout(this.seekReleaseTimer)
-    this.seekSnapshot = this.data.media.canSeek && !this.data.mediaBusy ? Object.assign({}, this.data.media) : null
+    this.seekSnapshot = this.data.media.canSeek && !this.data.mediaBusy && !this.data.media.quality.switching ? Object.assign({}, this.data.media) : null
   },
   seekEnd() {
     // A tap without a value change may have no change event. Resume status updates anyway.
