@@ -3,13 +3,8 @@ const { Discovery, readSession } = require('../../lib/discovery')
 const { emptyMedia, mediaView, formatTime, sliderTarget } = require('../../lib/media')
 const websites = [
   { id: 'youtube', name: 'YouTube', badge: '▶', color: '#d93025', url: 'https://www.youtube.com/' },
-  { id: 'bilibili', name: '哔哩哔哩', badge: '哔', color: '#d94d82', url: 'https://www.bilibili.com/' },
-  { id: 'tencent', name: '腾讯视频', badge: '腾', color: '#237dc0', url: 'https://v.qq.com/' },
-  { id: 'iqiyi', name: '爱奇艺', badge: '爱', color: '#39852b', url: 'https://www.iqiyi.com/' },
-  { id: 'youku', name: '优酷', badge: '优', color: '#1485a3', url: 'https://www.youku.com/' },
-  { id: 'mango', name: '芒果 TV', badge: '芒', color: '#bd6a0b', url: 'https://www.mgtv.com/' },
-  { id: 'cctv', name: '央视网', badge: '央', color: '#bc3541', url: 'https://tv.cctv.com/' },
-  { id: 'twitch', name: 'Twitch', badge: 'T', color: '#7950c7', url: 'https://www.twitch.tv/' }
+  { id: 'bilibili', name: 'Bilibili', badge: '哔', color: '#d94d82', url: 'https://www.bilibili.com/' },
+  { id: 'netflix', name: 'Netflix', badge: 'N', color: '#c8202b', url: 'https://www.netflix.com/' }
 ]
 Page({
   data: { connected: false, busy: false, status: '正在寻找电视…', host: '', port: '8877', code: '', text: '', manual: false, devices: [],

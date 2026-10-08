@@ -16,15 +16,6 @@
     <text class="footnote">手机与盒子连接同一 Wi-Fi，无需电脑常驻。</text>
   </view>
   <block wx:else>
-    <view class="card websites-card">
-      <view class="websites-heading"><text class="section-title">常用网站</text><text class="websites-caption">点一下，在电视打开</text></view>
-      <view class="websites-grid">
-        <button wx:for="{{websites}}" wx:key="id" class="website" data-id="{{item.id}}" bindtap="openWebsite" disabled="{{!!openingWebsite}}" hover-class="website-pressed">
-          <text class="website-badge" style="background: {{item.color}};">{{item.badge}}</text>
-          <text class="website-name">{{openingWebsite === item.id ? '正在打开…' : item.name}}</text>
-        </button>
-      </view>
-    </view>
     <view class="trackpad" catchtouchstart="touchStart" catchtouchmove="touchMove" catchtouchend="touchEnd" catchtouchcancel="touchCancel">
       <text class="pad-symbol">＋</text><text class="pad-title">触控板</text><text class="pad-hint">单指移动 · 轻点点击 · 双指滚动</text>
     </view>
@@ -50,6 +41,15 @@
       <textarea placeholder="输入网址、搜索词或网页文字" value="{{text}}" maxlength="4096" data-field="text" bindinput="field" />
       <view class="row"><button class="primary" data-op="open" bindtap="send">打开 / 搜索</button><button data-op="text" bindtap="send">输入到网页</button></view>
       <text class="footnote">输入到网页前，先点中电视网页的输入框。</text>
+    </view>
+    <view class="card websites-card">
+      <view class="websites-heading"><text class="section-title">常用网站</text><text class="websites-caption">点一下，在电视打开</text></view>
+      <view class="websites-grid">
+        <button wx:for="{{websites}}" wx:key="id" class="website" data-id="{{item.id}}" bindtap="openWebsite" disabled="{{!!openingWebsite}}" hover-class="website-pressed">
+          <text class="website-badge" style="background: {{item.color}};">{{item.badge}}</text>
+          <text class="website-name">{{openingWebsite === item.id ? '正在打开…' : item.name}}</text>
+        </button>
+      </view>
     </view>
     <button class="quiet" bindtap="disconnect">断开连接</button>
   </block>
