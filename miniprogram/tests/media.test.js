@@ -92,7 +92,7 @@ function page() {
   let definition
   const toasts = []
   vm.runInNewContext(fs.readFileSync(require.resolve('../pages/remote/remote.js'), 'utf8'), {
-    require: path => path.endsWith('/media') ? require('../lib/media') : path.endsWith('/volume') ? require('../lib/volume') : {},
+    require: path => require(path.replace('../../lib/', '../lib/')),
     Page: value => { definition = value }, wx: { showToast: toast => toasts.push(toast) },
     setTimeout, clearTimeout, setInterval, clearInterval, Date
   })

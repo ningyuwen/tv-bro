@@ -30,6 +30,17 @@
     <view class="remote-tools row">
       <button bindtap="toggleDirections">{{showDirections ? '收起方向键' : '方向键'}}</button>
       <button data-op="back" bindtap="command">返回 / 关闭</button>
+      <button bindtap="toggleTouchSettings">{{showTouchSettings ? '收起设置' : '触控设置'}}</button>
+    </view>
+    <view wx:if="{{showTouchSettings}}" class="card touch-settings">
+      <text class="section-title">触控设置</text>
+      <view class="setting-heading"><text>指针速度</text><text>{{preferences.pointerSpeed}}%</text></view>
+      <slider min="50" max="200" step="25" value="{{preferences.pointerSpeed}}" data-preference="pointerSpeed" bindchange="touchPreference" activeColor="#52962c" backgroundColor="#e2e8df" block-size="24" />
+      <view class="setting-heading"><text>网页滚动速度</text><text>{{preferences.scrollSpeed}}%</text></view>
+      <slider min="50" max="200" step="25" value="{{preferences.scrollSpeed}}" data-preference="scrollSpeed" bindchange="touchPreference" activeColor="#52962c" backgroundColor="#e2e8df" block-size="24" />
+      <view class="setting-heading"><text>反向网页滚动</text><switch color="#52962c" checked="{{preferences.reverseScroll}}" data-preference="reverseScroll" bindchange="touchPreference" /></view>
+      <text class="footnote">100% 为原来的手感。设置保存在这台手机上；菜单滑动方向和速度保持默认。</text>
+      <button class="quiet" bindtap="resetTouchSettings">恢复默认手感</button>
     </view>
     <view wx:if="{{showDirections}}" class="card direction-card">
       <view class="direction-pad">
@@ -84,9 +95,14 @@
       <text class="footnote">{{volume.hint}}</text>
     </view>
     <view class="card input-card"><text class="section-title">手机输入</text>
-      <textarea placeholder="输入网址、搜索词或网页文字" value="{{text}}" maxlength="4096" data-field="text" bindinput="field" />
-      <view class="row"><button class="primary" data-op="open" bindtap="send">打开 / 搜索</button><button data-op="text" bindtap="send">输入到网页</button></view>
-      <text class="footnote">输入到网页前，先点中电视网页的输入框。</text>
+      <view class="row input-modes">
+        <button class="{{inputMode === 'open' ? 'input-selected' : ''}}" data-mode="open" bindtap="inputMode">网址 / 搜索</button>
+        <button class="{{inputMode === 'text' ? 'input-selected' : ''}}" data-mode="text" bindtap="inputMode">电视输入框</button>
+      </view>
+      <textarea placeholder="{{inputMode === 'text' ? '输入要发送到电视输入框的文字' : '输入网址或搜索关键词'}}" value="{{inputMode === 'text' ? pageText : openText}}" maxlength="4096" data-field="{{inputMode === 'text' ? 'pageText' : 'openText'}}" bindinput="field" />
+      <view class="row input-actions"><button class="primary" loading="{{inputBusy}}" bindtap="send">{{inputBusy ? '正在发送…' : (inputMode === 'text' ? '发送到输入框' : '打开 / 搜索')}}</button><button bindtap="clearInput">清空</button></view>
+      <text wx:if="{{inputStatus}}" class="input-status">{{inputStatus}}</text>
+      <text class="footnote">{{inputMode === 'text' ? '先点中电视上的网页或浏览器输入框，再发送文字。' : '在电视当前标签页打开网址，或使用电视浏览器的搜索引擎搜索。'}} 草稿仅在本次使用中保留，不写入手机存储。</text>
     </view>
     <view class="card websites-card">
       <view class="websites-heading"><text class="section-title">常用网站</text><text class="websites-caption">点一下，在电视打开</text></view>

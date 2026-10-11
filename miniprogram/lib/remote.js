@@ -24,7 +24,7 @@ const ERRORS = {
   pair_failed: '配对失败或配对码过期，请在电视上重新配对',
   unauthorized: '手机授权已失效，请在电视上重新确认',
   background: '浏览器已离开前台，请在电视上打开青柠浏览器',
-  no_input: '请先点击电视网页里的输入框',
+  no_input: '请先点中电视上的网页或浏览器输入框',
   not_ready: '网页尚未就绪，请稍后重试',
   invalid_url: '只支持网址或搜索词',
   rate_limited: '操作太快，请稍后重试'

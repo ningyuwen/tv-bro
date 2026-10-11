@@ -58,3 +58,10 @@
 .quality-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12rpx; margin-top: 20rpx; }
 .quality-options .quality-option { display: flex; align-items: center; justify-content: center; width: 100%; min-width: 0; height: 88rpx; box-sizing: border-box; margin: 0; padding: 12rpx 8rpx; font-size: 24rpx; line-height: 1.6; text-align: center; }
 .quality-options .quality-selected { background: #e9f3df; color: #396b20; }
+.remote-tools button { font-size: 24rpx; padding: 0 12rpx; }
+.setting-heading { display: flex; align-items: center; justify-content: space-between; font-size: 27rpx; }
+.touch-settings slider { margin: 20rpx 12rpx 28rpx; }
+.input-modes { margin-bottom: 20rpx; }
+.input-modes button, .input-actions button { flex: 1; min-width: 0; font-size: 26rpx; padding: 0 12rpx; }
+.input-modes .input-selected { background: #e9f3df; color: #396b20; }
+.input-status { display: block; margin-top: 20rpx; color: #396b20; font-size: 25rpx; line-height: 1.7; overflow-wrap: break-word; }

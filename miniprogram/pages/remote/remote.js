@@ -2,16 +2,22 @@ const { RemoteClient, parsePairing } = require('../../lib/remote')
 const { Discovery, readSession } = require('../../lib/discovery')
 const { emptyMedia, mediaView, formatTime, sliderTarget } = require('../../lib/media')
 const { emptyVolume, volumeView } = require('../../lib/volume')
+const { DEFAULT_PREFERENCES, normalizePreferences, readPreferences, savePreferences, motionScale } = require('../../lib/preferences')
 const websites = [
   { id: 'youtube', name: 'YouTube', badge: '▶', color: '#d93025', url: 'https://www.youtube.com/' },
   { id: 'bilibili', name: 'Bilibili', badge: '哔', color: '#d94d82', url: 'https://www.bilibili.com/' },
   { id: 'netflix', name: 'Netflix', badge: 'N', color: '#c8202b', url: 'https://www.netflix.com/' }
 ]
 Page({
-  data: { connected: false, busy: false, connectionAction: '', status: '正在寻找电视…', host: '', port: '8877', code: '', text: '', manual: false, devices: [],
+  data: { connected: false, busy: false, connectionAction: '', status: '正在寻找电视…', host: '', port: '8877', code: '', manual: false, devices: [],
+    preferences: DEFAULT_PREFERENCES, showTouchSettings: false, inputMode: 'open', openText: '', pageText: '', inputBusy: false, inputStatus: '',
     navigation: false, focusedControl: '', showDirections: false, navigationSupported: false, media: emptyMedia(), mediaBusy: false, qualityChoices: [], fullscreenBusy: false, volume: emptyVolume(), volumeBusy: false, websites, openingWebsite: '' },
   onLoad() {
     this.epoch = 0
+    this.autoFind = true
+    this.retryAttempt = 0
+    this.approvalAttempts = new Set()
+    this.setData({ preferences: readPreferences(wx) })
     this.discovery = new Discovery(wx)
     this.client = new RemoteClient(wx, message => {
       if (!this.data.connected) return
@@ -20,24 +26,42 @@ Page({
       this.stopMediaPolling()
       this.stopVolumePolling()
       this.clearMotion()
-      this.setData({ connected: false, navigation: false, focusedControl: '', busy: false, fullscreenBusy: false, status: message })
-      if (this.visible) this.retry = setTimeout(() => this.find(), 3000)
+      this.setData({ connected: false, navigation: false, focusedControl: '', busy: false, fullscreenBusy: false, inputBusy: false, inputStatus: '', status: message })
+      this.scheduleFind(message)
     }, ui => this.updateUi(ui))
   },
-  onShow() { this.visible = true; this.find() },
+  onShow() { this.visible = true; this.autoFind = true; this.retryAttempt = 0; this.find(true) },
   onHide() { this.visible = false; this.disconnect() },
   onUnload() { this.visible = false; this.disconnect() },
-  field(event) { this.setData({ [event.currentTarget.dataset.field]: event.detail.value }) },
+  field(event) {
+    const field = event.currentTarget.dataset.field
+    if (['openText', 'pageText'].includes(field)) {
+      this.inputRevision = (this.inputRevision || 0) + 1
+      this.setData({ [field]: event.detail.value, inputStatus: '' })
+    } else this.setData({ [field]: event.detail.value })
+  },
   toggleManual() { this.setData({ manual: !this.data.manual }) },
-  async find() {
-    if (!this.visible || this.scanning || this.data.busy || this.data.connected) return
+  scheduleFind(message) {
     clearTimeout(this.retry)
+    if (!this.visible || this.autoFind === false || this.data.connected || this.scanning) return
+    const delay = Math.min(15000, 3000 * Math.pow(2, Math.min(this.retryAttempt || 0, 3)))
+    this.retryAttempt = (this.retryAttempt || 0) + 1
+    this.setData({ status: `${message}；${delay / 1000} 秒后自动重试` })
+    this.retry = setTimeout(() => { this.retry = null; this.find(true) }, delay)
+  },
+  async find(automatic = false) {
+    if (!this.visible || this.scanning || this.data.busy || this.data.connected) return
+    automatic = automatic === true
+    this.autoFind = true
+    if (!automatic) this.retryAttempt = 0
+    clearTimeout(this.retry)
+    this.retry = null
     const epoch = ++this.epoch
-    this.setData({ busy: true, connectionAction: 'find', devices: [], status: '正在寻找电视…' })
+    this.setData({ busy: true, connectionAction: 'find', status: this.retryAttempt ? '正在重新寻找电视…' : '正在寻找电视…' })
     const saved = readSession(wx)
     if (saved) {
       try {
-        await this.attach(saved, saved, epoch, 1500)
+        await this.attach(saved, saved, epoch, 1500, null, automatic)
         return
       } catch (error) {
         if (epoch !== this.epoch || !this.visible) return
@@ -45,112 +69,196 @@ Page({
         // Discovery can recover an old address, but must not repeat a failed
         // TV approval (or replace its error with approval_busy).
         if (error.authorizationFailed) {
-          this.setData({ busy: false })
-          this.error(error)
+          this.setData({ busy: false, connectionAction: '', status: error.message })
+          if (!automatic) this.error(error)
+          this.scheduleFind(error.message)
           return
         }
       }
     }
-    const devices = await this.discovery.start()
+    let devices
+    try { devices = await this.discovery.start() }
+    catch (error) {
+      if (!this.visible || epoch !== this.epoch) return
+      this.setData({ busy: false, connectionAction: '' })
+      this.scheduleFind(error.message || '暂时无法寻找电视')
+      return
+    }
     if (!this.visible || epoch !== this.epoch) return
-    this.setData({ busy: false, devices })
+    this.setData({ busy: false, connectionAction: '', devices })
     const remembered = saved && devices.find(device => device.deviceId === saved.deviceId)
     const selected = remembered || (devices.length === 1 ? devices[0] : null)
-    if (selected) return this.choose(selected)
-    this.setData({ status: devices.length ? '发现多台电视，请选择' : '未找到电视，请打开电视上的青柠浏览器' })
+    if (selected && (!automatic || remembered || !this.approvalAttempts || !this.approvalAttempts.has(selected.deviceId))) {
+      return this.choose(selected, automatic)
+    }
+    this.scheduleFind(selected ? '请点选电视重新授权，并在电视上确认' : devices.length ? '发现多台电视，请选择' : '未找到电视，请打开电视上的青柠浏览器并确认连接同一 Wi-Fi')
   },
-  async choose(value) {
-    if (this.data.busy || this.scanning) return
-    const device = value.currentTarget ? this.data.devices[value.currentTarget.dataset.index] : value
-    if (!device) return
+  async choose(value, automatic = false) {
+    const explicit = value && value.currentTarget && automatic !== true
+    const device = value && value.currentTarget ? this.data.devices[value.currentTarget.dataset.index] : value
+    if (!device || this.scanning) return
+    if (this.data.busy) {
+      if (!explicit || this.data.connectionAction !== 'find') return
+      // Invalidate the in-flight search before stopping it or closing its socket.
+      this.epoch++
+      this.discovery.stop()
+      this.client.close()
+    }
+    this.autoFind = true
+    clearTimeout(this.retry)
+    this.retry = null
     const epoch = ++this.epoch
     const saved = readSession(wx)
     this.setData({ busy: true, connectionAction: 'device', status: '正在连接电视…' })
-    try { await this.attach(device, saved && saved.deviceId === device.deviceId ? saved : null, epoch) }
-    catch (error) { if (epoch === this.epoch) { this.client.close(); if (this.visible) this.error(error) } }
-    finally { if (epoch === this.epoch) this.setData({ busy: false }) }
-  },
-  async attach(device, saved, epoch, timeout = 6000, code) {
-    const ensureCurrent = () => {
-      if (!this.visible || epoch !== this.epoch) throw new Error('连接取消')
+    let failure
+    try { await this.attach(device, saved && saved.deviceId === device.deviceId ? saved : null, epoch, 6000, null, automatic === true) }
+    catch (error) {
+      if (epoch === this.epoch) {
+        failure = error
+        this.client.close()
+        if (this.visible && !automatic) this.error(error)
+      }
     }
-    await this.client.connect(device, timeout)
+    finally {
+      if (epoch === this.epoch) {
+        this.setData({ busy: false, connectionAction: '' })
+        if (failure) this.scheduleFind(failure.message)
+      }
+    }
+  },
+  async attach(device, saved, epoch, timeout = 6000, code, automatic = false) {
+    const client = this.client
+    const ensureCurrent = () => {
+      if (!this.visible || epoch !== this.epoch || client !== this.client) throw new Error('连接取消')
+    }
+    await client.connect(device, timeout)
     ensureCurrent()
-    const info = await this.client.request('info')
+    const info = await client.request('info')
     ensureCurrent()
+    if (device.deviceId && info.deviceId !== device.deviceId) throw new Error('盒子地址已变化，正在重新查找')
+    if (!/^[a-f0-9-]{36}$/.test(info.deviceId)) throw new Error('电视版本过旧，请更新青柠浏览器')
     this.mediaSupported = info.mediaControl === 1
     this.fullscreenSupported = info.fullscreenControl === 1
     this.volumeSupported = info.volumeControl === 1
     this.setData({ navigationSupported: info.uiNavigation === 1 })
     this.qualitySupported = info.qualityControl === 1
-    if (device.deviceId && info.deviceId !== device.deviceId) throw new Error('盒子地址已变化，正在重新查找')
-    if (!/^[a-f0-9-]{36}$/.test(info.deviceId)) throw new Error('电视版本过旧，请更新青柠浏览器')
     if (saved) {
-      this.client.token = saved.token
-      try { await this.client.request('status') }
+      client.token = saved.token
+      try { await client.request('status'); ensureCurrent() }
       catch (error) {
         ensureCurrent()
         if (error.code !== 'unauthorized') throw error
         wx.removeStorageSync('lime-session-v1')
-        this.client.token = ''
+        client.token = ''
         saved = null
       }
     }
     if (!saved) {
-      this.setData({ status: code ? '正在配对…' : '请在电视上选择「允许并记住」' })
+      if (!this.approvalAttempts) this.approvalAttempts = new Set()
+      if (automatic && this.approvalAttempts.has(info.deviceId)) {
+        throw Object.assign(new Error('请点选电视重新授权，并在电视上确认'), { code: 'authorization_required' })
+      }
+      this.approvalAttempts.add(info.deviceId)
+      this.setData({ status: code ? '正在配对…' : '等待电视确认：请选择「允许并记住」' })
       try {
-        const reply = code ? await this.client.pair(code) : await this.client.request('authorize', {}, 35000)
+        // Page ownership must be checked before assigning the token, including QR pairing.
+        const reply = code ? await client.request('pair', { code }) : await client.request('authorize', {}, 35000)
         ensureCurrent()
         if (!/^[a-f0-9]{64}$/.test(reply.token)) throw new Error('授权响应无效')
-        this.client.token = reply.token
+        client.token = reply.token
         // Approval has already succeeded; keep it even if the next status request disconnects.
         wx.setStorageSync('lime-session-v1', { host: device.host, port: Number(device.port), deviceId: info.deviceId, token: reply.token })
       } catch (error) {
         error.authorizationFailed = true
         throw error
       }
-      await this.client.request('status')
+      await client.request('status')
+      ensureCurrent()
     }
-    ensureCurrent()
-    wx.setStorageSync('lime-session-v1', { host: device.host, port: Number(device.port), deviceId: info.deviceId, token: this.client.token })
-    this.setData({ connected: true, busy: false, devices: [], status: '已连接青柠浏览器', code: '', manual: false })
+    wx.setStorageSync('lime-session-v1', { host: device.host, port: Number(device.port), deviceId: info.deviceId, token: client.token })
+    this.retryAttempt = 0
+    clearTimeout(this.retry)
+    this.retry = null
+    this.setData({ connected: true, busy: false, connectionAction: '', devices: [], status: '已连接青柠浏览器', code: '', manual: false })
     this.startHeartbeat()
     this.startMediaPolling()
     this.startVolumePolling()
   },
   scan() {
     if (this.data.busy || this.scanning) return
+    clearTimeout(this.retry)
+    this.retry = null
+    this.autoFind = true
     this.scanning = true
+    const operation = { epoch: this.epoch }
+    this.scanOperation = operation
+    const current = () => this.scanOperation === operation && this.visible && this.epoch === operation.epoch
     this.discovery.stop()
     wx.scanCode({ scanType: ['qrCode'], success: result => {
-      this.scanning = false
+      if (!current()) return
       try {
         const info = parsePairing(result.result)
+        this.scanning = false
+        this.scanOperation = null
         this.setData({ host: info.host, port: String(info.port), code: info.code })
         this.connect()
       } catch (error) { this.error(error) }
-    }, fail: error => { if (!/cancel/.test(error.errMsg)) this.error(new Error('无法扫码，请使用手动配对')) },
-    complete: () => { this.scanning = false } })
+    }, fail: error => {
+      if (current() && !/cancel/.test(error.errMsg)) this.error(new Error('无法扫码，请使用手动配对'))
+    }, complete: () => {
+      if (!current()) return
+      this.scanning = false
+      this.scanOperation = null
+      if (!this.data.connected && !this.data.busy) this.scheduleFind('继续寻找电视')
+    } })
   },
   async connect() {
     if (this.data.busy || this.scanning) return
-    if (this.data.code && !/^\d{6}$/.test(this.data.code)) return this.error(new Error('请输入电视上的六位配对码'))
+    clearTimeout(this.retry)
+    this.retry = null
+    this.autoFind = true
+    if (this.data.code && !/^\d{6}$/.test(this.data.code)) {
+      const error = new Error('请输入电视上的六位配对码')
+      this.error(error)
+      this.scheduleFind(error.message)
+      return
+    }
     const epoch = ++this.epoch
-    this.setData({ busy: true, connectionAction: 'connect', status: '正在连接…' })
+    this.stopHeartbeat()
+    this.stopMediaPolling()
+    this.stopVolumePolling()
+    this.clearMotion()
+    this.setData({ connected: false, busy: true, connectionAction: 'connect', inputBusy: false, inputStatus: '', status: '正在连接…' })
+    let failure
     try { await this.attach({ host: this.data.host.trim(), port: this.data.port }, null, epoch, 6000, this.data.code || null) }
-    catch (error) { if (epoch === this.epoch) { this.client.close(); if (this.visible) this.error(error) } }
-    finally { if (epoch === this.epoch) this.setData({ busy: false }) }
+    catch (error) {
+      if (epoch === this.epoch) {
+        failure = error
+        this.client.close()
+        if (this.visible) this.error(error)
+      }
+    }
+    finally {
+      if (epoch === this.epoch) {
+        this.setData({ busy: false, connectionAction: '' })
+        if (failure) this.scheduleFind(failure.message)
+      }
+    }
   },
   disconnect() {
+    this.autoFind = false
     this.epoch++
     clearTimeout(this.retry)
+    this.retry = null
+    this.scanning = false
+    this.scanOperation = null
     this.stopHeartbeat()
     this.stopMediaPolling()
     this.stopVolumePolling()
     if (this.discovery) this.discovery.stop()
     this.clearMotion()
     if (this.client) this.client.close()
-    this.setData({ connected: false, navigation: false, focusedControl: '', busy: false, fullscreenBusy: false, status: '已断开，打开小程序可自动重连' })
+    this.setData({ connected: false, navigation: false, focusedControl: '', busy: false, connectionAction: '', fullscreenBusy: false, inputBusy: false, inputStatus: '', status: '已断开，点「重新寻找电视」可连接' })
   },
   error(error) {
     if (error.code !== 'client_busy') this.setData({ status: error.message })
@@ -193,6 +301,21 @@ Page({
     this.setData({ navigation, focusedControl: typeof ui.focus === 'string' ? ui.focus.slice(0, 120) : '' })
   },
   toggleDirections() { this.setData({ showDirections: !this.data.showDirections }) },
+  toggleTouchSettings() { this.setData({ showTouchSettings: !this.data.showTouchSettings }) },
+  touchPreference(event) {
+    const field = event.currentTarget.dataset.preference
+    if (!['pointerSpeed', 'scrollSpeed', 'reverseScroll'].includes(field)) return
+    this.clearMotion()
+    const preferences = normalizePreferences(Object.assign({}, this.data.preferences, { [field]: event.detail.value }))
+    this.setData({ preferences })
+    if (!savePreferences(wx, preferences)) wx.showToast({ title: '设置本次有效，保存失败，下次需重新调整', icon: 'none' })
+  },
+  resetTouchSettings() {
+    this.clearMotion()
+    const preferences = normalizePreferences(DEFAULT_PREFERENCES)
+    this.setData({ preferences })
+    if (!savePreferences(wx, preferences)) wx.showToast({ title: '已恢复默认，保存失败', icon: 'none' })
+  },
   async command(event) {
     // Discard any unfinished drag before changing the TV's interface.
     this.clearMotion()
@@ -414,10 +537,36 @@ Page({
     }
     return this.volumeCommand('setMuted', { muted: event.detail.value })
   },
-  async send(event) {
-    if (!this.data.text.trim()) return
-    try { await this.client.request(event.currentTarget.dataset.op, { text: this.data.text }) }
-    catch (error) { this.error(error) }
+  inputMode(event) {
+    const mode = event.currentTarget.dataset.mode
+    if (!['open', 'text'].includes(mode) || this.data.inputBusy) return
+    this.inputRevision = (this.inputRevision || 0) + 1
+    this.setData({ inputMode: mode, inputStatus: '' })
+  },
+  clearInput() {
+    this.inputRevision = (this.inputRevision || 0) + 1
+    this.setData({ [this.data.inputMode === 'text' ? 'pageText' : 'openText']: '', inputStatus: '' })
+  },
+  async send() {
+    if (this.data.inputBusy) return
+    if (!this.data.connected) { this.setData({ inputStatus: '请先连接电视，再发送文字' }); return }
+    const op = this.data.inputMode === 'text' ? 'text' : 'open'
+    const text = this.data[op === 'text' ? 'pageText' : 'openText']
+    if (!text.trim()) { this.setData({ inputStatus: op === 'text' ? '请先输入要发送到电视的文字' : '请先输入网址或搜索词' }); return }
+    const epoch = this.epoch, revision = this.inputRevision
+    this.setData({ inputBusy: true, inputStatus: '正在发送…' })
+    try {
+      await this.client.request(op, { text })
+      if (epoch === this.epoch && revision === this.inputRevision) {
+        this.setData({ inputStatus: op === 'text' ? '文字已发送到电视输入框' : '已发送，电视正在打开网址或搜索' })
+      }
+    } catch (error) {
+      if (epoch === this.epoch && revision === this.inputRevision) {
+        const message = error.code === 'no_input' ? '未选中输入框：请先在电视上点中网页或浏览器输入框，再点发送' : error.message
+        this.setData({ inputStatus: message })
+        wx.showToast({ title: message, icon: 'none', duration: 2600 })
+      }
+    } finally { if (epoch === this.epoch) this.setData({ inputBusy: false }) }
   },
   point(touches) {
     return { x: touches.reduce((sum, t) => sum + t.clientX, 0) / touches.length,
@@ -470,8 +619,9 @@ Page({
     // Aggregate touch events, then send at most one command per 32ms.
     if (this.motion && this.motion.op !== op) this.motion = null
     if (!this.motion) this.motion = { op, dx: 0, dy: 0, gestureId: this.scrollGestureId }
-    this.motion.dx = Math.max(-500, Math.min(500, this.motion.dx + (op === 'scroll' ? -1 : 1) * dx * 2))
-    this.motion.dy = Math.max(-500, Math.min(500, this.motion.dy + (op === 'scroll' ? -1 : 1) * dy * 2))
+    const scale = motionScale(this.data.preferences, op, this.data.navigation)
+    this.motion.dx = Math.max(-500, Math.min(500, this.motion.dx + dx * scale))
+    this.motion.dy = Math.max(-500, Math.min(500, this.motion.dy + dy * scale))
     if (!this.motionTimer && (!this.motionFlight || this.motionFlight.epoch !== this.epoch)) this.motionTimer = setTimeout(() => this.flushMotion(), 32)
   },
   flushMotion() {
