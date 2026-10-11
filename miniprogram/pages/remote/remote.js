@@ -39,7 +39,17 @@ Page({
       try {
         await this.attach(saved, saved, epoch, 1500)
         return
-      } catch (_) { if (epoch !== this.epoch || !this.visible) return; this.client.close() }
+      } catch (error) {
+        if (epoch !== this.epoch || !this.visible) return
+        this.client.close()
+        // Discovery can recover an old address, but must not repeat a failed
+        // TV approval (or replace its error with approval_busy).
+        if (error.authorizationFailed) {
+          this.setData({ busy: false })
+          this.error(error)
+          return
+        }
+      }
     }
     const devices = await this.discovery.start()
     if (!this.visible || epoch !== this.epoch) return
@@ -61,8 +71,13 @@ Page({
     finally { if (epoch === this.epoch) this.setData({ busy: false }) }
   },
   async attach(device, saved, epoch, timeout = 6000, code) {
+    const ensureCurrent = () => {
+      if (!this.visible || epoch !== this.epoch) throw new Error('连接取消')
+    }
     await this.client.connect(device, timeout)
+    ensureCurrent()
     const info = await this.client.request('info')
+    ensureCurrent()
     this.mediaSupported = info.mediaControl === 1
     this.fullscreenSupported = info.fullscreenControl === 1
     this.volumeSupported = info.volumeControl === 1
@@ -70,26 +85,33 @@ Page({
     this.qualitySupported = info.qualityControl === 1
     if (device.deviceId && info.deviceId !== device.deviceId) throw new Error('盒子地址已变化，正在重新查找')
     if (!/^[a-f0-9-]{36}$/.test(info.deviceId)) throw new Error('电视版本过旧，请更新青柠浏览器')
-    if (!this.visible || epoch !== this.epoch) throw new Error('连接取消')
     if (saved) {
       this.client.token = saved.token
       try { await this.client.request('status') }
       catch (error) {
+        ensureCurrent()
         if (error.code !== 'unauthorized') throw error
         wx.removeStorageSync('lime-session-v1')
+        this.client.token = ''
         saved = null
       }
     }
     if (!saved) {
       this.setData({ status: code ? '正在配对…' : '请在电视上选择「允许并记住」' })
-      const reply = code ? await this.client.pair(code) : await this.client.request('authorize', {}, 35000)
-      if (!/^[a-f0-9]{64}$/.test(reply.token)) throw new Error('授权响应无效')
-      this.client.token = reply.token
-      // Approval has already succeeded; keep it even if the next status request disconnects.
-      wx.setStorageSync('lime-session-v1', { host: device.host, port: Number(device.port), deviceId: info.deviceId, token: reply.token })
+      try {
+        const reply = code ? await this.client.pair(code) : await this.client.request('authorize', {}, 35000)
+        ensureCurrent()
+        if (!/^[a-f0-9]{64}$/.test(reply.token)) throw new Error('授权响应无效')
+        this.client.token = reply.token
+        // Approval has already succeeded; keep it even if the next status request disconnects.
+        wx.setStorageSync('lime-session-v1', { host: device.host, port: Number(device.port), deviceId: info.deviceId, token: reply.token })
+      } catch (error) {
+        error.authorizationFailed = true
+        throw error
+      }
       await this.client.request('status')
     }
-    if (!this.visible || epoch !== this.epoch) throw new Error('连接取消')
+    ensureCurrent()
     wx.setStorageSync('lime-session-v1', { host: device.host, port: Number(device.port), deviceId: info.deviceId, token: this.client.token })
     this.setData({ connected: true, busy: false, devices: [], status: '已连接青柠浏览器', code: '', manual: false })
     this.startHeartbeat()
